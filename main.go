@@ -29,10 +29,10 @@ func main() {
 	srv := config.NewServer(os.Getenv("PORT"))
 	apiPrefix := srv.Srv.Group("/api/v1")
 
-	userRepo := repository.NewMongoUserRepository(dbName)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService, apiPrefix)
-	userHandler.RegisterRoutes()
+	playerRepo := repository.NewMongoPlayerRepository(dbName)
+	playerService := service.NewPlayerService(playerRepo)
+	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)
+	playerHandler.RegisterRoutes()
 
 	gameRepo := repository.NewMongoGameRepository(dbName)
 	gameService := service.NewGameService(gameRepo)
