@@ -34,5 +34,10 @@ func main() {
 	userHandler := handler.NewUserHandler(userService, apiPrefix)
 	userHandler.RegisterRoutes()
 
+	gameRepo := repository.NewGameRepository(db.Database(dbName))
+	gameService := service.NewGameService(gameRepo)
+	gameHandler := handler.NewGameHandler(gameService, apiPrefix)
+	gameHandler.RegisterRoutes()
+
 	srv.Run()
 }

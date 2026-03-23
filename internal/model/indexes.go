@@ -10,13 +10,23 @@ import (
 )
 
 func CreateIndexes(ctx context.Context, db *mongo.Database) []interface{} {
-	indexModel := mongo.IndexModel{
+	userIndexModel := mongo.IndexModel{
 		Keys:    bson.D{{Key: "username", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
-	_, err := db.Collection(consts.UserCollection).Indexes().CreateOne(ctx, indexModel)
+	_, err := db.Collection(consts.UserCollection).Indexes().CreateOne(ctx, userIndexModel)
 	if err != nil {
-		panic("Error creating index: " + err.Error())
+		panic("Error creating user index: " + err.Error())
 	}
-	return []interface{}{indexModel}
+
+	gameIndexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "name", Value: 1}},
+		Options: options.Index().SetUnique(true),
+	}
+	_, err = db.Collection(consts.GameCollection).Indexes().CreateOne(ctx, gameIndexModel)
+	if err != nil {
+		panic("Error creating game index: " + err.Error())
+	}
+
+	return []interface{}{userIndexModel, gameIndexModel}
 }
