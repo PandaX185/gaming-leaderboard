@@ -22,6 +22,7 @@ func NewGameHandler(svc *service.GameService, rg *gin.RouterGroup) *GameHandler 
 func (h *GameHandler) RegisterRoutes() {
 	h.rg.POST("/games", h.CreateGame)
 	h.rg.GET("/games/:id", h.GetGameByID)
+	h.rg.GET("/games/:id/scores", h.GetGameScores)
 	h.rg.GET("/games", h.GetAllGames)
 	h.rg.PUT("/games/:id", h.UpdateGame)
 	h.rg.DELETE("/games/:id", h.DeleteGame)
@@ -52,6 +53,28 @@ func (h *GameHandler) GetGameByID(c *gin.Context) {
 	resp, err := h.svc.GetGameByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "Game not found " + err.Error()})
+		return
+	}
+
+	c.JSON(200, resp)
+}
+
+func (h *GameHandler) GetGameScores(c *gin.Context) {
+	id := c.Param("id")
+	params := &dto.PaginationParams{}
+	if err := c.ShouldBindQuery(params); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid query parameters"})
+		return
+	}
+
+	if err := dto.ValidateStructRequest(params); err != nil {
+		c.JSON(400, gin.H{"error": err.Error()})
+		return
+	}
+
+	resp, err := h.svc.GetGameScores(c.Request.Context(), id, params)
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Failed to retrieve game scores " + err.Error()})
 		return
 	}
 

@@ -83,8 +83,18 @@ func (r *mongoPlayerRepository) GetByID(ctx context.Context, id string) (*dto.Pl
 }
 
 func (r *mongoPlayerRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	sortField := "updated_at"
+	if params.Sort != "" {
+		sortField = params.Sort
+	}
+	sortOrder := -1
+	if params.Order == "asc" {
+		sortOrder = 1
+	}
+
 	skip := (params.Page - 1) * params.PageSize
-	cursor, err := r.db.Collection(consts.PlayerCollection).Find(ctx, bson.M{}, options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)))
+	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)).SetSort(bson.M{sortField: sortOrder})
+	cursor, err := r.db.Collection(consts.PlayerCollection).Find(ctx, bson.M{}, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,7 @@ import (
 
 func CreateIndexes(ctx context.Context, db *mongo.Database) []interface{} {
 	playerIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "playername", Value: 1}},
+		Keys:    bson.D{{Key: "username", Value: 1}},
 		Options: options.Index().SetUnique(true),
 	}
 	_, err := db.Collection(consts.PlayerCollection).Indexes().CreateOne(ctx, playerIndexModel)

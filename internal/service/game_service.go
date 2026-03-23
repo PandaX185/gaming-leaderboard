@@ -28,6 +28,10 @@ func (s *GameService) GetAllGames(ctx context.Context, params *dto.PaginationPar
 	return s.repo.GetAll(ctx, params)
 }
 
+func (s *GameService) GetGameScores(ctx context.Context, id string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	return s.repo.GetScores(ctx, id, params)
+}
+
 func (s *GameService) UpdateGame(ctx context.Context, id string, data *dto.UpdateGameRequest) (*dto.GameResponse, error) {
 	return s.repo.Update(ctx, id, data)
 }

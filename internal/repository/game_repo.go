@@ -17,6 +17,7 @@ type GameRepository interface {
 	Insert(context.Context, *dto.CreateGameRequest) (*dto.GameResponse, error)
 	GetByID(context.Context, string) (*dto.GameResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
+	GetScores(context.Context, string, *dto.PaginationParams) (*dto.PaginatedResponse, error)
 	Update(context.Context, string, *dto.UpdateGameRequest) (*dto.GameResponse, error)
 	Delete(context.Context, string) error
 }
@@ -57,8 +58,18 @@ func (r *mongoGameRepository) GetByID(ctx context.Context, id string) (*dto.Game
 }
 
 func (r *mongoGameRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	sortField := "updated_at"
+	if params.Sort != "" {
+		sortField = params.Sort
+	}
+	sortOrder := -1
+	if params.Order == "asc" {
+		sortOrder = 1
+	}
+
 	skip := (params.Page - 1) * params.PageSize
-	cursor, err := r.db.Collection(consts.GameCollection).Find(ctx, bson.M{}, options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)))
+	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)).SetSort(bson.M{sortField: sortOrder})
+	cursor, err := r.db.Collection(consts.GameCollection).Find(ctx, bson.M{}, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +83,64 @@ func (r *mongoGameRepository) GetAll(ctx context.Context, params *dto.Pagination
 		responses = append(responses, game.ToResponse())
 	}
 	count, err := r.db.Collection(consts.GameCollection).CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, err
+	}
+
+	if params.Page <= 0 {
+		params.Page = 1
+	}
+	if params.PageSize <= 0 {
+		params.PageSize = 10
+	}
+
+	totalPages := int(count) / params.PageSize
+	if int(count)%params.PageSize > 0 {
+		totalPages++
+	}
+
+	return &dto.PaginatedResponse{
+		TotalItems: int(count),
+		Items:      responses,
+		TotalPages: totalPages,
+		Page:       params.Page,
+		PageSize:   params.PageSize,
+		HasNext:    params.Page*params.PageSize < int(count),
+		HasPrev:    params.Page > 1,
+	}, nil
+}
+
+func (r *mongoGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	objID, err := primitive.ObjectIDFromHex(gameID)
+	if err != nil {
+		return nil, err
+	}
+
+	sortField := "score"
+	if params.Sort != "" {
+		sortField = params.Sort
+	}
+	sortOrder := -1
+	if params.Order == "asc" {
+		sortOrder = 1
+	}
+
+	skip := (params.Page - 1) * params.PageSize
+	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)).SetSort(bson.M{sortField: sortOrder})
+	cursor, err := r.db.Collection(consts.PlayerGameCollection).Find(ctx, bson.M{"game_id": objID}, opts)
+	if err != nil {
+		return nil, err
+	}
+	var scores []model.PlayerGame
+	if err = cursor.All(ctx, &scores); err != nil {
+		return nil, err
+	}
+
+	var responses []*dto.GameScoreResponse
+	for _, score := range scores {
+		responses = append(responses, score.ToResponse())
+	}
+	count, err := r.db.Collection(consts.PlayerGameCollection).CountDocuments(ctx, bson.M{"game_id": objID})
 	if err != nil {
 		return nil, err
 	}
