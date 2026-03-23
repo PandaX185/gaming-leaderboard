@@ -21,17 +21,17 @@ type GameRepository interface {
 	Delete(context.Context, string) error
 }
 
-func NewGameRepository(db *mongo.Database) GameRepository {
-	return &gameRepository{
+func NewMongoGameRepository(db *mongo.Database) GameRepository {
+	return &mongoGameRepository{
 		db: db,
 	}
 }
 
-type gameRepository struct {
+type mongoGameRepository struct {
 	db *mongo.Database
 }
 
-func (r *gameRepository) Insert(ctx context.Context, data *dto.CreateGameRequest) (*dto.GameResponse, error) {
+func (r *mongoGameRepository) Insert(ctx context.Context, data *dto.CreateGameRequest) (*dto.GameResponse, error) {
 	doc := model.Game{}.FromCreateDTO(data)
 	doc.ID = primitive.NewObjectID()
 
@@ -42,7 +42,7 @@ func (r *gameRepository) Insert(ctx context.Context, data *dto.CreateGameRequest
 	return doc.ToResponse(), nil
 }
 
-func (r *gameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
+func (r *mongoGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (r *gameRepository) GetByID(ctx context.Context, id string) (*dto.GameRespo
 	return game.ToResponse(), nil
 }
 
-func (r *gameRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+func (r *mongoGameRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
 	skip := (params.Page - 1) * params.PageSize
 	cursor, err := r.db.Collection(consts.GameCollection).Find(ctx, bson.M{}, options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)))
 	if err != nil {
@@ -99,7 +99,7 @@ func (r *gameRepository) GetAll(ctx context.Context, params *dto.PaginationParam
 	}, nil
 }
 
-func (r *gameRepository) Update(ctx context.Context, id string, data *dto.UpdateGameRequest) (*dto.GameResponse, error) {
+func (r *mongoGameRepository) Update(ctx context.Context, id string, data *dto.UpdateGameRequest) (*dto.GameResponse, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (r *gameRepository) Update(ctx context.Context, id string, data *dto.Update
 	return r.GetByID(ctx, id)
 }
 
-func (r *gameRepository) Delete(ctx context.Context, id string) error {
+func (r *mongoGameRepository) Delete(ctx context.Context, id string) error {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return err

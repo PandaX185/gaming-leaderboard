@@ -20,17 +20,17 @@ type UserRepository interface {
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
 }
 
-func NewUserRepository(db *mongo.Database) UserRepository {
-	return &userRepository{
+func NewMongoUserRepository(db *mongo.Database) UserRepository {
+	return &mongoUserRepository{
 		db: db,
 	}
 }
 
-type userRepository struct {
+type mongoUserRepository struct {
 	db *mongo.Database
 }
 
-func (r *userRepository) Insert(ctx context.Context, data *dto.CreateUserRequest) (*dto.UserResponse, error) {
+func (r *mongoUserRepository) Insert(ctx context.Context, data *dto.CreateUserRequest) (*dto.UserResponse, error) {
 	doc := model.User{}.FromDTO(data)
 	doc.ID = primitive.NewObjectID()
 	_, err := r.db.Collection(consts.UserCollection).InsertOne(ctx, doc)
@@ -40,7 +40,7 @@ func (r *userRepository) Insert(ctx context.Context, data *dto.CreateUserRequest
 	return doc.ToResponse(), nil
 }
 
-func (r *userRepository) UpdateScore(ctx context.Context, id string, score int) (*dto.UserResponse, error) {
+func (r *mongoUserRepository) UpdateScore(ctx context.Context, id string, score int) (*dto.UserResponse, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (r *userRepository) UpdateScore(ctx context.Context, id string, score int) 
 	return r.GetByID(ctx, id)
 }
 
-func (r *userRepository) GetByID(ctx context.Context, id string) (*dto.UserResponse, error) {
+func (r *mongoUserRepository) GetByID(ctx context.Context, id string) (*dto.UserResponse, error) {
 	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (r *userRepository) GetByID(ctx context.Context, id string) (*dto.UserRespo
 	return user.ToResponse(), nil
 }
 
-func (r *userRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+func (r *mongoUserRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
 	skip := (params.Page - 1) * params.PageSize
 	cursor, err := r.db.Collection(consts.UserCollection).Find(ctx, bson.M{}, options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)))
 	if err != nil {

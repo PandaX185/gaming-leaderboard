@@ -24,17 +24,17 @@ func main() {
 	}
 	defer db.Disconnect(context.Background())
 
-	dbName := os.Getenv("DB_NAME")
-	model.CreateIndexes(context.Background(), db.Database(dbName))
+	dbName := db.Database(os.Getenv("DB_NAME"))
+	model.CreateIndexes(context.Background(), dbName)
 	srv := config.NewServer(os.Getenv("PORT"))
 	apiPrefix := srv.Srv.Group("/api/v1")
 
-	userRepo := repository.NewUserRepository(db.Database(dbName))
+	userRepo := repository.NewMongoUserRepository(dbName)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService, apiPrefix)
 	userHandler.RegisterRoutes()
 
-	gameRepo := repository.NewGameRepository(db.Database(dbName))
+	gameRepo := repository.NewMongoGameRepository(dbName)
 	gameService := service.NewGameService(gameRepo)
 	gameHandler := handler.NewGameHandler(gameService, apiPrefix)
 	gameHandler.RegisterRoutes()
