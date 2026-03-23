@@ -46,7 +46,10 @@ func (r *userRepository) UpdateScore(ctx context.Context, id string, score int) 
 		return nil, err
 	}
 
-	_, err = r.db.Collection(consts.UserCollection).UpdateOne(ctx, bson.M{"_id": objID}, bson.M{"$inc": bson.M{"score": score, "updated_at": time.Now()}})
+	_, err = r.db.Collection(consts.UserCollection).UpdateOne(ctx, bson.M{"_id": objID}, bson.M{
+		"$inc": bson.M{"score": score},
+		"$set": bson.M{"updated_at": time.Now()},
+	})
 	if err != nil {
 		return nil, err
 	}
