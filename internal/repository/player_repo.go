@@ -14,8 +14,8 @@ import (
 )
 
 type PlayerRepository interface {
-	Insert(context.Context, *dto.CreatePlayerRequest) (*dto.PlayerResponse, error)
-	UpdateScore(context.Context, string, string, int) (*dto.PlayerResponse, error)
+	Insert(context.Context, *dto.CreatePlayerRequest) error
+	UpdateScore(context.Context, *dto.UpdateScoreRequest) error
 	GetByID(context.Context, string) (*dto.PlayerResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
 }
@@ -30,29 +30,28 @@ type mongoPlayerRepository struct {
 	db *mongo.Database
 }
 
-func (r *mongoPlayerRepository) Insert(ctx context.Context, data *dto.CreatePlayerRequest) (*dto.PlayerResponse, error) {
+func (r *mongoPlayerRepository) Insert(ctx context.Context, data *dto.CreatePlayerRequest) error {
 	doc := model.Player{}.FromDTO(data)
-	doc.ID = primitive.NewObjectID()
 	_, err := r.db.Collection(consts.PlayerCollection).InsertOne(ctx, doc)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return doc.ToResponse(), nil
+	return nil
 }
 
-func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, id string, gameId string, score int) (*dto.PlayerResponse, error) {
-	objID, err := primitive.ObjectIDFromHex(id)
+func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, data *dto.UpdateScoreRequest) error {
+	objID, err := primitive.ObjectIDFromHex(data.PlayerID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	gameObjID, err := primitive.ObjectIDFromHex(gameId)
+	gameObjID, err := primitive.ObjectIDFromHex(data.GameID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	filter := bson.M{"player_id": objID, "game_id": gameObjID}
 	update := bson.M{
-		"$inc": bson.M{"score": score},
+		"$inc": bson.M{"score": data.Score},
 		"$set": bson.M{"updated_at": time.Now()},
 		"$setOnInsert": bson.M{
 			"_id":        primitive.NewObjectID(),
@@ -63,9 +62,9 @@ func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, id string, game
 
 	_, err = r.db.Collection(consts.PlayerGameCollection).UpdateOne(ctx, filter, update, opts)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return r.GetByID(ctx, id)
+	return nil
 }
 
 func (r *mongoPlayerRepository) GetByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {

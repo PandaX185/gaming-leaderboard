@@ -3,25 +3,54 @@ package service
 import (
 	"context"
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/model"
+	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/repository"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type PlayerService struct {
-	repo repository.PlayerRepository
+	repo    repository.PlayerRepository
+	playerQ queue.IPlayerQueue
 }
 
-func NewPlayerService(repo repository.PlayerRepository) *PlayerService {
+func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IPlayerQueue) *PlayerService {
 	return &PlayerService{
-		repo: repo,
+		repo:    repo,
+		playerQ: playerQ,
 	}
 }
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayerRequest) (*dto.PlayerResponse, error) {
-	return s.repo.Insert(ctx, data)
+	data = &dto.CreatePlayerRequest{
+		ID:        primitive.NewObjectID(),
+		Username:  data.Username,
+		Password:  data.Password,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := s.playerQ.PublishPlayerCreated(ctx, data); err != nil {
+		return nil, err
+	}
+	return model.Player{}.FromDTO(data).ToResponse(), nil
 }
 
-func (s *PlayerService) UpdatePlayerScore(ctx context.Context, id string, gameId string, score int) (*dto.PlayerResponse, error) {
-        return s.repo.UpdateScore(ctx, id, gameId, score)
+func (s *PlayerService) UpdatePlayerScore(ctx context.Context, id string, gameId string, score int) (*dto.ScoreUpdated, error) {
+	data := &dto.UpdateScoreRequest{
+		PlayerID: id,
+		GameID:   gameId,
+		Score:    score,
+	}
+
+	if err := s.playerQ.PublishPlayerScoreUpdated(ctx, data); err != nil {
+		return nil, err
+	}
+	return &dto.ScoreUpdated{
+		Message: "Score update queued successfully",
+	}, nil
 }
 
 func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {

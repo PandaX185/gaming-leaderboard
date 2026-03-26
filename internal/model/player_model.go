@@ -16,9 +16,10 @@ type Player struct {
 
 func (u Player) FromDTO(data *dto.CreatePlayerRequest) Player {
 	return Player{
+		ID:        data.ID,
 		Username:  data.Username,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: data.CreatedAt,
+		UpdatedAt: data.UpdatedAt,
 	}
 }
 
