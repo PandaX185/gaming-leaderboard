@@ -12,8 +12,8 @@ import (
 	"gaming-leaderboard/internal/worker"
 	"log"
 	"os"
-	"strconv"
 
+	"github.com/gin-contrib/pprof"
 	"github.com/joho/godotenv"
 )
 
@@ -31,21 +31,16 @@ func main() {
 	dbName := db.Database(os.Getenv("DB_NAME"))
 	model.CreateIndexes(context.Background(), dbName)
 	srv := config.NewServer(os.Getenv("PORT"))
+	pprof.Register(srv.Srv)
 	apiPrefix := srv.Srv.Group("/api/v1")
 
 	playerRepo := repository.NewMongoPlayerRepository(dbName)
 	playerQueue := queue.NewPlayerQueue(playerRepo)
 
-	maxWorkers, err := strconv.Atoi(os.Getenv("WORKER_COUNT"))
-	if err != nil {
-		maxWorkers = 3
-	}
-	log.Printf("Starting %d player workers...", maxWorkers)
+	log.Println("Starting player worker pool...")
+	worker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(0)
+	go worker.Start(context.Background())
 
-	for range maxWorkers {
-		worker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(3)
-		go worker.Start(context.Background())
-	}
 	playerService := service.NewPlayerService(playerRepo, playerQueue)
 	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)
 	playerHandler.RegisterRoutes()

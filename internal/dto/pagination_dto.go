@@ -2,7 +2,7 @@ package dto
 
 type PaginationParams struct {
 	Page     int    `form:"page" validate:"gte=1" example:"1"`
-	PageSize int    `form:"page_size" validate:"gte=1" example:"10"`
+	PageSize int    `form:"page_size" validate:"gte=1,lt=40" example:"10"`
 	Sort     string `form:"sort" example:"score"`
 	Order    string `form:"order" validate:"omitempty,oneof=asc desc" example:"desc"`
 }

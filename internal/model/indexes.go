@@ -10,23 +10,43 @@ import (
 )
 
 func CreateIndexes(ctx context.Context, db *mongo.Database) []interface{} {
-	playerIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "username", Value: 1}},
-		Options: options.Index().SetUnique(true),
+	playerIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "username", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "updated_at", Value: -1}},
+		},
 	}
-	_, err := db.Collection(consts.PlayerCollection).Indexes().CreateOne(ctx, playerIndexModel)
+	_, err := db.Collection(consts.PlayerCollection).Indexes().CreateMany(ctx, playerIndexes)
 	if err != nil {
 		panic("Error creating player index: " + err.Error())
 	}
 
-	gameIndexModel := mongo.IndexModel{
-		Keys:    bson.D{{Key: "name", Value: 1}},
-		Options: options.Index().SetUnique(true),
+	gameIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "name", Value: 1}},
+			Options: options.Index().SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "updated_at", Value: -1}},
+		},
 	}
-	_, err = db.Collection(consts.GameCollection).Indexes().CreateOne(ctx, gameIndexModel)
+	_, err = db.Collection(consts.GameCollection).Indexes().CreateMany(ctx, gameIndexes)
 	if err != nil {
 		panic("Error creating game index: " + err.Error())
 	}
 
-	return []interface{}{playerIndexModel, gameIndexModel}
+	scoreIndexes := []mongo.IndexModel{
+		{
+			Keys: bson.D{{Key: "score", Value: -1}},
+		},
+	}
+	_, err = db.Collection(consts.PlayerGameCollection).Indexes().CreateMany(ctx, scoreIndexes)
+	if err != nil {
+		panic("Error creating score index: " + err.Error())
+	}
+
+	return []interface{}{playerIndexes, gameIndexes, scoreIndexes}
 }

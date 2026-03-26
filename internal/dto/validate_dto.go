@@ -6,8 +6,9 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+var validate = validator.New()
+
 func ValidateStructRequest(data interface{}) error {
-	validate := validator.New()
 	err := validate.Struct(data)
 	if err != nil {
 		for _, err := range err.(validator.ValidationErrors) {
