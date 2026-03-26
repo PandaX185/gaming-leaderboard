@@ -53,7 +53,7 @@ export function createPlayer() {
 }
 
 export function updateScore() {
-    const playersRes = http.get(`http://host.docker.internal:8080/api/v1/players?page=1&page_size=100`);
+    const playersRes = http.get(`http://host.docker.internal:8080/api/v1/players?page=1&page_size=40`);
     const players = playersRes.json().items;
     if (players.length === 0) return;
 

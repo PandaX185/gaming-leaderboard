@@ -22,19 +22,34 @@ func main() {
 		panic("Error loading .env file")
 	}
 
-	db, err := db.Init(os.Getenv("DB_URI"))
+	dbInstance, err := db.Init(os.Getenv("DB_URI"))
 	if err != nil {
 		panic("Error initializing database")
 	}
-	defer db.Disconnect(context.Background())
+	defer dbInstance.Disconnect(context.Background())
 
-	dbName := db.Database(os.Getenv("DB_NAME"))
+	dbName := dbInstance.Database(os.Getenv("DB_NAME"))
 	model.CreateIndexes(context.Background(), dbName)
 	srv := config.NewServer(os.Getenv("PORT"))
 	pprof.Register(srv.Srv)
 	apiPrefix := srv.Srv.Group("/api/v1")
 
 	playerRepo := repository.NewMongoPlayerRepository(dbName)
+	redisURI := os.Getenv("REDIS_URI")
+	redisClient, err := db.InitRedis(redisURI)
+	if err != nil {
+		log.Printf("Error connecting to Redis: %v. Continuing without cache.\n", err)
+	} else {
+		log.Println("Connected to Redis successfully")
+		playerRepo = repository.NewCachedPlayerRepository(playerRepo, redisClient)
+		log.Println("Redis cache enabled for player repository")
+	}
+	defer func() {
+		if redisClient != nil {
+			redisClient.Close()
+		}
+	}()
+
 	playerQueue := queue.NewPlayerQueue(playerRepo)
 
 	log.Println("Starting player worker pool...")

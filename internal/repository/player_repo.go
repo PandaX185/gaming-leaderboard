@@ -18,6 +18,7 @@ type PlayerRepository interface {
 	UpdateScore(context.Context, *dto.UpdateScoreRequest) error
 	GetByID(context.Context, string) (*dto.PlayerResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
+	Count(context.Context) (int, error)
 }
 
 func NewMongoPlayerRepository(db *mongo.Database) PlayerRepository {
@@ -106,23 +107,19 @@ func (r *mongoPlayerRepository) GetAll(ctx context.Context, params *dto.Paginati
 	for _, player := range players {
 		responses = append(responses, player.ToResponse())
 	}
-	count, err := r.db.Collection(consts.PlayerCollection).CountDocuments(ctx, bson.M{})
-	if err != nil {
-		return nil, err
-	}
-
-	totalPages := int(count) / params.PageSize
-	if int(count)%params.PageSize != 0 {
-		totalPages++
-	}
 
 	return &dto.PaginatedResponse{
-		TotalItems: int(count),
-		Items:      responses,
-		TotalPages: totalPages,
-		Page:       params.Page,
-		PageSize:   params.PageSize,
-		HasNext:    params.Page*params.PageSize < int(count),
-		HasPrev:    params.Page > 1,
+		Items:    responses,
+		Page:     params.Page,
+		PageSize: params.PageSize,
+		HasPrev:  params.Page > 1,
 	}, nil
+}
+
+func (r *mongoPlayerRepository) Count(ctx context.Context) (int, error) {
+	count, err := r.db.Collection(consts.PlayerCollection).CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
 }
