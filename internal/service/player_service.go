@@ -13,10 +13,10 @@ import (
 
 type PlayerService struct {
 	repo    repository.PlayerRepository
-	playerQ queue.IPlayerQueue
+	playerQ queue.IQueue
 }
 
-func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IPlayerQueue) *PlayerService {
+func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IQueue) *PlayerService {
 	return &PlayerService{
 		repo:    repo,
 		playerQ: playerQ,
@@ -32,7 +32,7 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 		UpdatedAt: time.Now(),
 	}
 
-	if err := s.playerQ.PublishPlayerCreated(ctx, data); err != nil {
+	if err := s.playerQ.PublishEvent(ctx, data); err != nil {
 		return nil, err
 	}
 	return model.Player{}.FromDTO(data).ToResponse(), nil
@@ -45,7 +45,7 @@ func (s *PlayerService) UpdatePlayerScore(ctx context.Context, id string, gameId
 		Score:    score,
 	}
 
-	if err := s.playerQ.PublishPlayerScoreUpdated(ctx, data); err != nil {
+	if err := s.playerQ.PublishEvent(ctx, data); err != nil {
 		return nil, err
 	}
 	return &dto.ScoreUpdated{

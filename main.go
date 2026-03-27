@@ -51,10 +51,15 @@ func main() {
 	}()
 
 	playerQueue := queue.NewPlayerQueue(playerRepo)
-
 	log.Println("Starting player worker pool...")
-	worker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(0)
-	go worker.Start(context.Background())
+	playerWorker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(0)
+	go playerWorker.Start(context.Background())
+	
+	scoreQueue := queue.NewPlayerQueue(playerRepo)
+	log.Println("Starting score worker pool...")
+	scoreWorker := worker.NewPlayerWorker(scoreQueue).SetMaxRetries(0)
+	go scoreWorker.Start(context.Background())
+
 
 	playerService := service.NewPlayerService(playerRepo, playerQueue)
 	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)

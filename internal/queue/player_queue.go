@@ -6,57 +6,42 @@ import (
 	"gaming-leaderboard/internal/repository"
 )
 
-type PlayerEvent struct {
-	Type    string
-	Payload any
-	Handler func(ctx context.Context, payload any) error
-	Attempt int
-}
-
-type IPlayerQueue interface {
-	PublishPlayerCreated(ctx context.Context, player *dto.CreatePlayerRequest) error
-	PublishPlayerScoreUpdated(ctx context.Context, data *dto.UpdateScoreRequest) error
-	GetEvents() chan PlayerEvent
-}
-
 type PlayerQueue struct {
-	events chan PlayerEvent
+	events chan Event
 	repo   repository.PlayerRepository
 }
 
 func NewPlayerQueue(r repository.PlayerRepository) *PlayerQueue {
 	return &PlayerQueue{
-		events: make(chan PlayerEvent, 1024),
+		events: make(chan Event, 1024),
 		repo:   r,
 	}
 }
 
-func (q *PlayerQueue) PublishPlayerCreated(ctx context.Context, player *dto.CreatePlayerRequest) error {
-	event := PlayerEvent{
-		Type:    "PlayerCreated",
-		Payload: player,
-		Handler: func(workerCtx context.Context, payload any) error {
-			return q.repo.Insert(workerCtx, payload.(*dto.CreatePlayerRequest))
-		},
-		Attempt: 0,
+func (q *PlayerQueue) PublishEvent(ctx context.Context, data any) error {
+	switch v := data.(type) {
+	case *dto.CreatePlayerRequest:
+		q.events <- Event{
+			Type:    "PlayerCreated",
+			Payload: v,
+			Handler: func(workerCtx context.Context, payload any) error {
+				return q.repo.Insert(workerCtx, payload.(*dto.CreatePlayerRequest))
+			},
+			Attempt: 0,
+		}
+	case *dto.UpdateScoreRequest:
+		q.events <- Event{
+			Type:    "ScoreUpdated",
+			Payload: v,
+			Handler: func(workerCtx context.Context, payload any) error {
+				return q.repo.UpdateScore(workerCtx, payload.(*dto.UpdateScoreRequest))
+			},
+			Attempt: 0,
+		}
 	}
-	q.events <- event
 	return nil
 }
 
-func (q *PlayerQueue) PublishPlayerScoreUpdated(ctx context.Context, data *dto.UpdateScoreRequest) error {
-	event := PlayerEvent{
-		Type:    "PlayerScoreUpdated",
-		Payload: data,
-		Handler: func(workerCtx context.Context, payload any) error {
-			return q.repo.UpdateScore(workerCtx, payload.(*dto.UpdateScoreRequest))
-		},
-		Attempt: 0,
-	}
-	q.events <- event
-	return nil
-}
-
-func (q *PlayerQueue) GetEvents() chan PlayerEvent {
+func (q *PlayerQueue) GetEvents() chan Event {
 	return q.events
 }

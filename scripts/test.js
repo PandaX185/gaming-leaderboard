@@ -3,69 +3,67 @@ import { check, sleep } from 'k6';
 
 export const options = {
     scenarios: {
-        create_players: {
-            executor: 'ramping-arrival-rate',
-            startRate: 10,
-            timeUnit: '1s',
-            preAllocatedVUs: 50,
-            maxVUs: 500,
-            stages: [
-                { target: 100, duration: '30s' },
-                { target: 500, duration: '1m' },
-                { target: 1000, duration: '2m' },
-            ],
-            exec: 'createPlayer',
-        },
         update_scores: {
             executor: 'ramping-arrival-rate',
             startRate: 5,
             timeUnit: '1s',
-            preAllocatedVUs: 50,
-            maxVUs: 500,
+            preAllocatedVUs: 100,
+            maxVUs: 1000,
             stages: [
-                { target: 50, duration: '30s' },
-                { target: 200, duration: '1m' },
-                { target: 500, duration: '2m' },
+                { target: 500, duration: '30s' },
+                { target: 2000, duration: '60s' },
+                { target: 5000, duration: '90s' },
             ],
             exec: 'updateScore',
         },
     },
 };
 
-const gameIds = [
-    '69c0e8a9382a53995762aacc',
-    '69c0e21d01a336170cd3a5bd',
-    '69c0e22901a336170cd3a5be',
-];
-
-export function createPlayer() {
-    const payload = JSON.stringify({
-        username: `user_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-        password: 'password123',
-    });
-
+export function setup() {
+    const gameIds = [];
+    const playerIds = [];
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const res = http.post(`http://host.docker.internal:8080/api/v1/players`, payload, params);
 
-    check(res, { '201 Created': (r) => r.status === 201 });
+    for (let i = 0; i < 10; i++) {
+        const payload = JSON.stringify({ name: `Game_${Date.now()}_${i}` });
+        const res = http.post(`http://host.docker.internal:8080/api/v1/games`, payload, params);
+        if (res.status === 201) {
+            gameIds.push(res.json().id);
+        }
+    }
 
-    sleep(0.1);
+    for (let i = 0; i < 100; i++) {
+        const payload = JSON.stringify({
+            username: `player_${Date.now()}_${i}`,
+            password: 'password123',
+        });
+        const res = http.post(`http://host.docker.internal:8080/api/v1/players`, payload, params);
+        if (res.status === 201) {
+            playerIds.push(res.json().id);
+        }
+    }
+
+    return { gameIds, playerIds };
 }
 
-export function updateScore() {
-    const playersRes = http.get(`http://host.docker.internal:8080/api/v1/players?page=1&page_size=40`);
-    const players = playersRes.json().items;
-    if (players.length === 0) return;
+export function updateScore(data) {
+    const { gameIds, playerIds } = data;
 
-    const player = players[Math.floor(Math.random() * players.length)];
+    if (!gameIds || !playerIds || gameIds.length === 0 || playerIds.length === 0) {
+        console.error("Setup data missing!");
+        return;
+    }
+
+    const player = playerIds[Math.floor(Math.random() * playerIds.length)];
+    const game = gameIds[Math.floor(Math.random() * gameIds.length)];
 
     const scorePayload = JSON.stringify({
-        game_id: gameIds[Math.floor(Math.random() * gameIds.length)],
-        score: Math.floor(Math.random() * 1000),
+        game_id: game,
+        score: Math.floor(Math.random() * 1000) + 1,
     });
 
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player.id}/score`, scorePayload, params);
+    const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
 
     check(scoreRes, { '200 OK': (r) => r.status === 200 });
 

@@ -1,0 +1,69 @@
+services:
+  mongo1:
+    image: mongo
+    container_name: mongo1
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo1_data:/data/db
+    command: [ "--replSet", "rs0", "--bind_ip_all" ]
+
+  mongo2:
+    image: mongo
+    container_name: mongo2
+    restart: always
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo2_data:/data/db
+    command: [ "--replSet", "rs0", "--bind_ip_all" ]
+
+  mongo3:
+    image: mongo
+    container_name: mongo3
+    restart: always
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo3_data:/data/db
+    command: [ "--replSet", "rs0", "--bind_ip_all" ]
+
+  mongo-setup:
+    image: mongo
+    container_name: mongo-setup
+    restart: "no"
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+    command: >
+      bash -c "
+        echo 'Waiting for MongoDB instances to start...'
+        sleep 5
+        mongosh --host mongo1:27017 --eval 'rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongo1:27017\"}, {_id: 1, host: \"mongo2:27017\"}, {_id: 2, host: \"mongo3:27017\"}]})' || true
+      "
+
+  app:
+    build: .
+    container_name: gaming-leaderboard-app
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongo-setup:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
