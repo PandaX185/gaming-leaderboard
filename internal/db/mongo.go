@@ -6,5 +6,5 @@ import (
 )
 
 func Init(uri string) (*mongo.Client, error) {
-	return mongo.Connect(options.Client().ApplyURI(uri).SetMaxPoolSize(500))
+	return mongo.Connect(options.Client().ApplyURI(uri).SetMaxPoolSize(0))
 }

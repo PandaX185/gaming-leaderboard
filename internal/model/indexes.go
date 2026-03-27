@@ -42,6 +42,13 @@ func CreateIndexes(ctx context.Context, db *mongo.Database) []interface{} {
 		{
 			Keys: bson.D{{Key: "score", Value: -1}},
 		},
+		{
+			Keys: bson.D{
+				{Key: "player_id", Value: 1},
+				{Key: "game_id", Value: 1},
+			},
+			Options: options.Index().SetUnique(true),
+		},
 	}
 	_, err = db.Collection(consts.PlayerGameCollection).Indexes().CreateMany(ctx, scoreIndexes)
 	if err != nil {

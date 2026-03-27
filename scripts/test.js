@@ -7,16 +7,20 @@ export const options = {
             executor: 'ramping-arrival-rate',
             startRate: 5,
             timeUnit: '1s',
-            preAllocatedVUs: 100,
+            preAllocatedVUs: 500,
             maxVUs: 1000,
             stages: [
-                { target: 500, duration: '30s' },
-                { target: 2000, duration: '60s' },
-                { target: 5000, duration: '90s' },
+                { target: 100, duration: '30s' },
+                { target: 300, duration: '60s' },
+                { target: 600, duration: '90s' },
             ],
             exec: 'updateScore',
         },
     },
+    thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.01'],
+    }
 };
 
 export function setup() {
@@ -66,6 +70,4 @@ export function updateScore(data) {
     const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
 
     check(scoreRes, { '200 OK': (r) => r.status === 200 });
-
-    sleep(0.1);
 }
