@@ -10,6 +10,7 @@ import (
 	config "gaming-leaderboard/internal/server"
 	"gaming-leaderboard/internal/service"
 	"gaming-leaderboard/internal/worker"
+	"gaming-leaderboard/metrics"
 	"log"
 	"os"
 
@@ -21,6 +22,8 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		panic("Error loading .env file")
 	}
+
+	metrics.Init()
 
 	dbInstance, err := db.Init(os.Getenv("DB_URI"))
 	if err != nil {

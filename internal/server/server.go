@@ -1,16 +1,41 @@
 package server
 
-import "github.com/gin-gonic/gin"
+import (
+	"gaming-leaderboard/metrics"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
 
 type Server struct {
 	Port string `yaml:"port"`
 	Srv  *gin.Engine
 }
 
+func PrometheusMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+
+		c.Next()
+
+		status := strconv.Itoa(c.Writer.Status())
+		duration := time.Since(start).Seconds()
+
+		metrics.RequestsTotal.WithLabelValues(c.Request.Method, c.FullPath(), status).Inc()
+		metrics.RequestDuration.WithLabelValues(c.Request.Method, c.FullPath()).Observe(duration)
+	}
+}
+
 func NewServer(port string) *Server {
+	r := gin.Default()
+	r.Use(PrometheusMiddleware())
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	return &Server{
 		Port: port,
-		Srv:  gin.Default(),
+		Srv:  r,
 	}
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/repository"
+	"gaming-leaderboard/metrics"
+	"time"
 )
 
 type InMemoryPlayerQueue struct {
@@ -12,10 +14,19 @@ type InMemoryPlayerQueue struct {
 }
 
 func NewInMemoryPlayerQueue(r repository.PlayerRepository) IQueue {
-	return &InMemoryPlayerQueue{
+	q := &InMemoryPlayerQueue{
 		events: make(chan Event, 1024),
 		repo:   r,
 	}
+
+	go func() {
+		for {
+			metrics.QueueSize.Set(float64(len(q.events)))
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	return q
 }
 
 func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error {

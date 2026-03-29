@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"gaming-leaderboard/metrics"
 )
 
 const (
@@ -34,6 +35,16 @@ func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository) IQ
 
 	hostname, _ := os.Hostname()
 	consumerID := hostname + "-" + uuid.NewString()
+
+	go func() {
+		for {
+			length, err := rdb.XLen(context.Background(), consts.PlayerGameCollection).Result()
+			if err == nil {
+				metrics.QueueSize.Set(float64(length))
+			}
+			time.Sleep(5 * time.Second)
+		}
+	}()
 
 	return &RedisPlayerQueue{
 		rdb:        rdb,
@@ -78,6 +89,7 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 					Group:    ConsumerGroup,
 					Consumer: q.consumerID,
 					Streams:  []string{consts.PlayerGameCollection, ">"},
+					Count:    50,
 					Block:    time.Second * 5,
 				}).Result()
 
@@ -168,6 +180,9 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 					}
 				}
 				return err
+			}
+			event.Ack = func(workerCtx context.Context) error {
+				return q.rdb.XAck(workerCtx, consts.PlayerGameCollection, ConsumerGroup, msgID).Err()
 			}
 			events <- event
 		}
