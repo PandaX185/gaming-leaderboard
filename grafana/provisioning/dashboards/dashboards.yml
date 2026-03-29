@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: mongodb-overview
+    orgId: 1
+    folder: MongoDB
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 15
+    options:
+      path: /etc/grafana/provisioning/dashboards

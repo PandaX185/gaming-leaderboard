@@ -37,11 +37,13 @@ func (w *Worker) Start(ctx context.Context) {
 			for {
 				select {
 				case event := <-eventsChan:
+					metrics.WorkerInFlight.Inc()
 					if err := event.Handler(ctx, event.Payload); err != nil {
 						metrics.WorkerErrors.Inc()
 						if event.Attempt < w.maxRetries {
 							log.Printf("Attempt %d failed, retrying...\n", event.Attempt+1)
 							event.Attempt++
+							metrics.WorkerRetriesTotal.WithLabelValues(event.Type).Inc()
 
 							go func(e queue.Event) {
 								eventsChan <- e
@@ -55,6 +57,7 @@ func (w *Worker) Start(ctx context.Context) {
 					} else {
 						metrics.WorkerProcessed.Inc()
 					}
+					metrics.WorkerInFlight.Dec()
 
 				case <-ctx.Done():
 					log.Println("Worker shutting down...")

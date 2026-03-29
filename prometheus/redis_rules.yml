@@ -1,0 +1,24 @@
+groups:
+  - name: redis-exporter-rules
+    interval: 30s
+    rules:
+      - record: redis:ops_per_sec:rate1m
+        expr: sum by (instance) (rate(redis_commands_processed_total[1m]))
+
+      - record: redis:net_input_bytes_per_sec:rate1m
+        expr: sum by (instance) (rate(redis_net_input_bytes_total[1m]))
+
+      - record: redis:net_output_bytes_per_sec:rate1m
+        expr: sum by (instance) (rate(redis_net_output_bytes_total[1m]))
+
+      - record: redis:memory_usage_ratio
+        expr: redis_memory_used_bytes / clamp_min(redis_memory_max_bytes, 1)
+
+      - record: redis:hit_ratio:rate5m
+        expr: |
+          sum by (instance) (rate(redis_keyspace_hits_total[5m])) /
+          clamp_min(
+            sum by (instance) (rate(redis_keyspace_hits_total[5m])) +
+            sum by (instance) (rate(redis_keyspace_misses_total[5m])),
+            1
+          )

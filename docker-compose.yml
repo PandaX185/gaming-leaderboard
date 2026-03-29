@@ -75,6 +75,27 @@ services:
     depends_on:
       - redis
 
+  mongodb-exporter:
+    image: percona/mongodb_exporter:0.47.1
+    container_name: mongodb-exporter
+    restart: always
+    ports:
+      - "9216:9216"
+    command:
+      - --mongodb.uri=mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0
+      - --no-mongodb.direct-connect
+      - --collector.diagnosticdata
+      - --collector.replicasetstatus
+      - --collector.replicasetconfig
+      - --collector.dbstats
+      - --collector.topmetrics
+      - --collector.currentopmetrics
+      - --collector.fcv
+      - --compatible-mode
+    depends_on:
+      mongo-setup:
+        condition: service_completed_successfully
+
   mongo-express:
     image: mongo-express
     container_name: mongo-express
@@ -96,7 +117,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus:/etc/prometheus
 
   grafana:
     image: grafana/grafana:latest
@@ -104,6 +125,8 @@ services:
     restart: always
     ports:
       - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin

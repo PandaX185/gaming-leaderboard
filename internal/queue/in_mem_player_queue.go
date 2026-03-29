@@ -22,6 +22,7 @@ func NewInMemoryPlayerQueue(r repository.PlayerRepository) IQueue {
 	go func() {
 		for {
 			metrics.QueueSize.Set(float64(len(q.events)))
+			metrics.QueueSizeByStream.WithLabelValues("in_memory_players").Set(float64(len(q.events)))
 			time.Sleep(5 * time.Second)
 		}
 	}()
@@ -32,6 +33,7 @@ func NewInMemoryPlayerQueue(r repository.PlayerRepository) IQueue {
 func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 	switch v := data.(type) {
 	case *dto.CreatePlayerRequest:
+		metrics.QueuePublishedTotal.WithLabelValues("PlayerCreated", "success").Inc()
 		q.events <- Event{
 			Type:    "PlayerCreated",
 			Payload: v,
@@ -41,6 +43,7 @@ func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error 
 			Attempt: 0,
 		}
 	case *dto.UpdateScoreRequest:
+		metrics.QueuePublishedTotal.WithLabelValues("ScoreUpdated", "success").Inc()
 		q.events <- Event{
 			Type:    "ScoreUpdated",
 			Payload: v,

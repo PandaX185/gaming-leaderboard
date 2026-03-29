@@ -11,9 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"gaming-leaderboard/metrics"
+
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"gaming-leaderboard/metrics"
 )
 
 const (
@@ -41,6 +42,7 @@ func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository) IQ
 			length, err := rdb.XLen(context.Background(), consts.PlayerGameCollection).Result()
 			if err == nil {
 				metrics.QueueSize.Set(float64(length))
+				metrics.QueueSizeByStream.WithLabelValues(consts.PlayerGameCollection).Set(float64(length))
 			}
 			time.Sleep(5 * time.Second)
 		}
@@ -67,7 +69,7 @@ func (q *RedisPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 		return err
 	}
 
-	return q.rdb.XAdd(ctx, &redis.XAddArgs{
+	err = q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: consts.PlayerGameCollection,
 		MaxLen: 10000,
 		Approx: true,
@@ -76,6 +78,12 @@ func (q *RedisPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 			"payload": string(payloadBytes),
 		},
 	}).Err()
+	if err != nil {
+		metrics.QueuePublishedTotal.WithLabelValues(eventType, "error").Inc()
+		return err
+	}
+	metrics.QueuePublishedTotal.WithLabelValues(eventType, "success").Inc()
+	return nil
 }
 
 func (q *RedisPlayerQueue) GetEvents() chan Event {
@@ -99,12 +107,13 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 					return
 				} else if err != nil {
 					log.Printf("Error reading from Redis Group: %v", err)
+					metrics.QueueReadErrorsTotal.WithLabelValues("xreadgroup").Inc()
 					time.Sleep(time.Second)
 					return
 				}
 
 				for _, stream := range streams {
-					q.processMessages(stream.Messages, events)
+					q.processMessages(stream.Messages, events, "readgroup")
 				}
 			}()
 		}
@@ -127,10 +136,11 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 
 				if err != nil && err != redis.Nil {
 					log.Printf("Error during XAutoClaim: %v", err)
+					metrics.QueueReadErrorsTotal.WithLabelValues("xautoclaim").Inc()
 					time.Sleep(time.Second)
 				} else if len(messages) > 0 {
 					log.Printf("Reclaimed %d pending messages", len(messages))
-					q.processMessages(messages, events)
+					q.processMessages(messages, events, "autoclaim")
 				}
 
 				time.Sleep(time.Second * 10)
@@ -141,10 +151,11 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 	return events
 }
 
-func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events chan Event) {
+func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events chan Event, source string) {
 	for _, message := range messages {
 		eventType, _ := message.Values["type"].(string)
 		payloadStr, _ := message.Values["payload"].(string)
+		metrics.QueueConsumedTotal.WithLabelValues(eventType, source).Inc()
 
 		var event Event
 		event.Type = eventType
@@ -179,12 +190,21 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 					ackErr := q.rdb.XAck(workerCtx, consts.PlayerGameCollection, ConsumerGroup, msgID).Err()
 					if ackErr != nil {
 						log.Printf("Failed to XACK message %s: %v", msgID, ackErr)
+						metrics.QueueAckTotal.WithLabelValues(eventType, "error").Inc()
+					} else {
+						metrics.QueueAckTotal.WithLabelValues(eventType, "success").Inc()
 					}
 				}
 				return err
 			}
 			event.Ack = func(workerCtx context.Context) error {
-				return q.rdb.XAck(workerCtx, consts.PlayerGameCollection, ConsumerGroup, msgID).Err()
+				ackErr := q.rdb.XAck(workerCtx, consts.PlayerGameCollection, ConsumerGroup, msgID).Err()
+				if ackErr != nil {
+					metrics.QueueAckTotal.WithLabelValues(eventType, "error").Inc()
+					return ackErr
+				}
+				metrics.QueueAckTotal.WithLabelValues(eventType, "success").Inc()
+				return nil
 			}
 			events <- event
 		}

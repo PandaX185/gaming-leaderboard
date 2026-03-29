@@ -20,11 +20,59 @@ var (
 		[]string{"method", "endpoint"},
 	)
 
+	RequestsInFlight = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "http_requests_in_flight",
+			Help: "Current in-flight HTTP requests",
+		},
+		[]string{"method", "endpoint"},
+	)
+
 	QueueSize = prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "redis_stream_length",
 			Help: "Redis stream length",
 		},
+	)
+
+	QueueSizeByStream = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "queue_length",
+			Help: "Queue length by backend stream or queue name",
+		},
+		[]string{"queue"},
+	)
+
+	QueuePublishedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "queue_published_total",
+			Help: "Total queue publish attempts",
+		},
+		[]string{"event_type", "result"},
+	)
+
+	QueueConsumedTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "queue_consumed_total",
+			Help: "Total consumed queue events",
+		},
+		[]string{"event_type", "source"},
+	)
+
+	QueueAckTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "queue_ack_total",
+			Help: "Total queue ACK attempts",
+		},
+		[]string{"event_type", "result"},
+	)
+
+	QueueReadErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "queue_read_errors_total",
+			Help: "Total queue read errors",
+		},
+		[]string{"operation"},
 	)
 
 	WorkerProcessed = prometheus.NewCounter(
@@ -38,6 +86,21 @@ var (
 		prometheus.CounterOpts{
 			Name: "worker_errors_total",
 			Help: "Total worker errors",
+		},
+	)
+
+	WorkerRetriesTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "worker_retries_total",
+			Help: "Total worker retries",
+		},
+		[]string{"event_type"},
+	)
+
+	WorkerInFlight = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "worker_events_in_flight",
+			Help: "Current number of worker events being processed",
 		},
 	)
 )
