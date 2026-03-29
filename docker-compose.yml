@@ -62,6 +62,18 @@ services:
     restart: always
     ports:
       - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction
+
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    restart: always
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+    depends_on:
+      - redis
 
   mongo-express:
     image: mongo-express

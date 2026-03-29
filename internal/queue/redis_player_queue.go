@@ -69,6 +69,8 @@ func (q *RedisPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 
 	return q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: consts.PlayerGameCollection,
+		MaxLen: 10000,
+		Approx: true,
 		Values: map[string]any{
 			"type":    eventType,
 			"payload": string(payloadBytes),
