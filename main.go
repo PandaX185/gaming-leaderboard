@@ -50,12 +50,12 @@ func main() {
 		}
 	}()
 
-	playerQueue := queue.NewPlayerQueue(playerRepo)
+	playerQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient)
 	log.Println("Starting player worker pool...")
 	playerWorker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(5)
 	go playerWorker.Start(context.Background())
 
-	scoreQueue := queue.NewPlayerQueue(playerRepo)
+	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient)
 	log.Println("Starting score worker pool...")
 	scoreWorker := worker.NewPlayerWorker(scoreQueue).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())

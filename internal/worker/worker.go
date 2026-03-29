@@ -29,16 +29,21 @@ func (w *Worker) Start(ctx context.Context) {
 	if err != nil {
 		poolSize = 100
 	}
+
+	eventsChan := w.qu.GetEvents()
 	for i := 0; i < poolSize; i++ {
 		go func() {
 			for {
 				select {
-				case event := <-w.qu.GetEvents():
+				case event := <-eventsChan:
 					if err := event.Handler(ctx, event.Payload); err != nil {
 						if event.Attempt < w.maxRetries {
 							log.Printf("Attempt %d failed, retrying...\n", event.Attempt+1)
 							event.Attempt++
-							w.qu.GetEvents() <- event
+							
+							go func(e queue.Event) {
+								eventsChan <- e
+							}(event)
 						} else {
 							log.Printf("Max retries reached for event %s, discarding", event.Type)
 						}

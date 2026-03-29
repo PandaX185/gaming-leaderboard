@@ -6,19 +6,19 @@ import (
 	"gaming-leaderboard/internal/repository"
 )
 
-type PlayerQueue struct {
+type InMemoryPlayerQueue struct {
 	events chan Event
 	repo   repository.PlayerRepository
 }
 
-func NewPlayerQueue(r repository.PlayerRepository) *PlayerQueue {
-	return &PlayerQueue{
+func NewInMemoryPlayerQueue(r repository.PlayerRepository) IQueue {
+	return &InMemoryPlayerQueue{
 		events: make(chan Event, 1024),
 		repo:   r,
 	}
 }
 
-func (q *PlayerQueue) PublishEvent(ctx context.Context, data any) error {
+func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 	switch v := data.(type) {
 	case *dto.CreatePlayerRequest:
 		q.events <- Event{
@@ -42,6 +42,6 @@ func (q *PlayerQueue) PublishEvent(ctx context.Context, data any) error {
 	return nil
 }
 
-func (q *PlayerQueue) GetEvents() chan Event {
+func (q *InMemoryPlayerQueue) GetEvents() chan Event {
 	return q.events
 }
