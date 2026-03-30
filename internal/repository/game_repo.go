@@ -136,9 +136,52 @@ func (r *mongoGameRepository) GetScores(ctx context.Context, gameID string, para
 		return nil, err
 	}
 
+	playerIDs := make([]string, 0, len(scores))
+	seen := make(map[string]struct{}, len(scores))
+	for _, score := range scores {
+		id := score.PlayerID.Hex()
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		playerIDs = append(playerIDs, id)
+	}
+
+	nameByID := make(map[string]string, len(playerIDs))
+	if len(playerIDs) > 0 {
+		pipeline := mongo.Pipeline{
+			{{Key: "$match", Value: bson.M{"$expr": bson.M{"$in": []any{bson.M{"$toString": "$_id"}, playerIDs}}}}},
+			{{Key: "$project", Value: bson.M{"_id": 0, "player_id": bson.M{"$toString": "$_id"}, "player_name": bson.M{"$ifNull": []any{"$username", "$username,unique"}}}}},
+		}
+
+		cursor, findErr := r.db.Collection(consts.PlayerCollection).Aggregate(ctx, pipeline)
+		if findErr == nil {
+			defer cursor.Close(ctx)
+			for cursor.Next(ctx) {
+				var row struct {
+					PlayerID   string `bson:"player_id"`
+					PlayerName string `bson:"player_name"`
+				}
+				if decodeErr := cursor.Decode(&row); decodeErr != nil {
+					continue
+				}
+				nameByID[row.PlayerID] = row.PlayerName
+			}
+		}
+	}
+
 	var responses []*dto.GameScoreResponse
 	for _, score := range scores {
-		responses = append(responses, score.ToResponse())
+		playerID := score.PlayerID.Hex()
+		playerName := nameByID[playerID]
+
+		responses = append(responses, &dto.GameScoreResponse{
+			PlayerID:   playerID,
+			PlayerName: playerName,
+			Score:      score.Score,
+			CreatedAt:  score.CreatedAt,
+			UpdatedAt:  score.UpdatedAt,
+		})
 	}
 	count, err := r.db.Collection(consts.PlayerGameCollection).CountDocuments(ctx, bson.M{"game_id": objID})
 	if err != nil {

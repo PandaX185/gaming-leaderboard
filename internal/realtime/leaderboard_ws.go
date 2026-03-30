@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/repository"
 	"log"
 	"net/http"
@@ -12,19 +13,23 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type ScoreUpdate struct {
-	Type     string  `json:"type"`
-	PlayerID string  `json:"player_id"`
-	Score    float64 `json:"score"`
-	Rank     int64   `json:"rank"`
+	Type       string  `json:"type"`
+	PlayerID   string  `json:"player_id"`
+	PlayerName string  `json:"player_name"`
+	Score      float64 `json:"score"`
+	Rank       int64   `json:"rank"`
 }
 
 type LeaderboardEntry struct {
-	Rank     int64   `json:"rank"`
-	PlayerID string  `json:"player_id"`
-	Score    float64 `json:"score"`
+	Rank       int64   `json:"rank"`
+	PlayerID   string  `json:"player_id"`
+	PlayerName string  `json:"player_name"`
+	Score      float64 `json:"score"`
 }
 
 type LeaderboardSnapshot struct {
@@ -47,7 +52,8 @@ func (c *wsClient) writeJSON(payload any) error {
 }
 
 type LeaderboardHub struct {
-	rdb *redis.Client
+	rdb    *redis.Client
+	db     *mongo.Database
 
 	upgrader websocket.Upgrader
 
@@ -56,9 +62,10 @@ type LeaderboardHub struct {
 	stops   map[string]context.CancelFunc
 }
 
-func NewLeaderboardHub(rdb *redis.Client, _ int64) *LeaderboardHub {
+func NewLeaderboardHub(rdb *redis.Client, db *mongo.Database) *LeaderboardHub {
 	return &LeaderboardHub{
 		rdb: rdb,
+		db:  db,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,
@@ -208,16 +215,60 @@ func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID st
 		return LeaderboardSnapshot{}, err
 	}
 
+	// Resolve player names in one Mongo query to avoid per-row lookup timeouts.
+	playerIDs := make([]string, 0, len(rows))
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		playerID, ok := row.Member.(string)
+		if !ok || playerID == "" {
+			continue
+		}
+		if _, exists := seen[playerID]; exists {
+			continue
+		}
+		seen[playerID] = struct{}{}
+		playerIDs = append(playerIDs, playerID)
+	}
+
+	nameByID := make(map[string]string, len(playerIDs))
+	if len(playerIDs) > 0 {
+		pipeline := mongo.Pipeline{
+			{{Key: "$match", Value: bson.M{"$expr": bson.M{"$in": []any{bson.M{"$toString": "$_id"}, playerIDs}}}}},
+			{{Key: "$project", Value: bson.M{"_id": 0, "player_id": bson.M{"$toString": "$_id"}, "player_name": bson.M{"$ifNull": []any{"$username", "$username,unique"}}}}},
+		}
+
+		cursor, findErr := h.db.Collection(consts.PlayerCollection).Aggregate(ctx, pipeline)
+		if findErr != nil {
+			log.Printf("failed to fetch player names for snapshot game %s: %v", gameID, findErr)
+		} else {
+			defer cursor.Close(ctx)
+			for cursor.Next(ctx) {
+				var row struct {
+					PlayerID   string `bson:"player_id"`
+					PlayerName string `bson:"player_name"`
+				}
+				if decodeErr := cursor.Decode(&row); decodeErr != nil {
+					continue
+				}
+				nameByID[row.PlayerID] = row.PlayerName
+			}
+		}
+	}
+
 	entries := make([]LeaderboardEntry, 0, len(rows))
 	for i, row := range rows {
 		playerID, ok := row.Member.(string)
 		if !ok {
 			continue
 		}
+
+		playerName := nameByID[playerID]
+
 		entries = append(entries, LeaderboardEntry{
-			Rank:     int64(i + 1),
-			PlayerID: playerID,
-			Score:    row.Score,
+			Rank:       int64(i + 1),
+			PlayerID:   playerID,
+			PlayerName: playerName,
+			Score:      row.Score,
 		})
 	}
 
@@ -261,6 +312,8 @@ func toScoreUpdate(values map[string]any) (ScoreUpdate, bool) {
 		return ScoreUpdate{}, false
 	}
 
+	playerName, _ := asString(values["player_name"])
+
 	updateType := "score_update"
 	if rawType, hasType := values["type"]; hasType {
 		if parsedType, ok := asString(rawType); ok && parsedType != "" {
@@ -269,10 +322,11 @@ func toScoreUpdate(values map[string]any) (ScoreUpdate, bool) {
 	}
 
 	return ScoreUpdate{
-		Type:     updateType,
-		PlayerID: playerID,
-		Score:    score,
-		Rank:     rank,
+		Type:       updateType,
+		PlayerID:   playerID,
+		PlayerName: playerName,
+		Score:      score,
+		Rank:       rank,
 	}, true
 }
 

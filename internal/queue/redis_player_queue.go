@@ -240,16 +240,23 @@ func (q *RedisPlayerQueue) emitScoreDeltaUpdate(ctx context.Context, scoreEvent 
 		return
 	}
 
+	player, playerErr := q.repo.GetByID(ctx, scoreEvent.PlayerID)
+	if playerErr != nil {
+		log.Printf("Failed to fetch player %s: %v", scoreEvent.PlayerID, playerErr)
+		return
+	}
+
 	stream := repository.LeaderboardUpdatesStream(scoreEvent.GameID)
 	if addErr := q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		MaxLen: 10000,
 		Approx: true,
 		Values: map[string]any{
-			"type":      "score_update",
-			"player_id": scoreEvent.PlayerID,
-			"score":     score,
-			"rank":      rank + 1,
+			"type":        "score_update",
+			"player_id":   scoreEvent.PlayerID,
+			"player_name": player.Username,
+			"score":       score,
+			"rank":        rank + 1,
 		},
 	}).Err(); addErr != nil {
 		log.Printf("Failed to append leaderboard stream update for game %s: %v", scoreEvent.GameID, addErr)

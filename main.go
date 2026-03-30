@@ -49,7 +49,7 @@ func main() {
 		leaderboardCache = repository.NewRedisLeaderboardCache(redisClient)
 		worker.RebuildLeaderboardsOnStartup(dbName, leaderboardCache)
 
-		leaderboardHub := realtime.NewLeaderboardHub(redisClient, 100)
+		leaderboardHub := realtime.NewLeaderboardHub(redisClient, dbName)
 		leaderboardWSHandler := handler.NewLeaderboardWSHandler(leaderboardHub, apiPrefix)
 		leaderboardWSHandler.RegisterRoutes()
 	}

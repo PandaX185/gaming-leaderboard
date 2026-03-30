@@ -56,6 +56,16 @@ services:
       redis:
         condition: service_started
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: gaming-leaderboard-front
+    restart: always
+    ports:
+      - "3001:3001"
+    depends_on:
+      - app
+
   redis:
     image: redis:latest
     container_name: redis
