@@ -42,13 +42,18 @@ func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error 
 			},
 			Attempt: 0,
 		}
-	case *dto.UpdateScoreRequest:
+	case *dto.UpdateScoreEvent:
 		metrics.QueuePublishedTotal.WithLabelValues("ScoreUpdated", "success").Inc()
 		q.events <- Event{
 			Type:    "ScoreUpdated",
 			Payload: v,
 			Handler: func(workerCtx context.Context, payload any) error {
-				return q.repo.UpdateScore(workerCtx, payload.(*dto.UpdateScoreRequest))
+				e := payload.(*dto.UpdateScoreEvent)
+				return q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
+					PlayerID: e.PlayerID,
+					GameID:   e.GameID,
+					Score:    e.Score,
+				})
 			},
 			Attempt: 0,
 		}

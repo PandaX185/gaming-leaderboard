@@ -20,6 +20,12 @@ type UpdateScoreRequest struct {
 	Score    int    `json:"score" validate:"required,gt=0" example:"1500"`
 }
 
+type UpdateScoreEvent struct {
+	PlayerID string `json:"player_id"`
+	GameID   string `json:"game_id"`
+	Score    int    `json:"score"`
+}
+
 type PlayerResponse struct {
 	ID        string    `json:"id" example:"60c72b2f9b1d4c3a5f8e4b1"`
 	Username  string    `json:"username" example:"player1"`

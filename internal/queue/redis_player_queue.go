@@ -60,7 +60,7 @@ func (q *RedisPlayerQueue) PublishEvent(ctx context.Context, data any) error {
 	switch data.(type) {
 	case *dto.CreatePlayerRequest:
 		eventType = "PlayerCreated"
-	case *dto.UpdateScoreRequest:
+	case *dto.UpdateScoreEvent:
 		eventType = "ScoreUpdated"
 	}
 
@@ -173,11 +173,16 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 				}
 			}
 		case "ScoreUpdated":
-			var req dto.UpdateScoreRequest
+			var req dto.UpdateScoreEvent
 			if err := json.Unmarshal([]byte(payloadStr), &req); err == nil {
 				event.Payload = &req
 				dbHandler = func(workerCtx context.Context, p any) error {
-					return q.repo.UpdateScore(workerCtx, p.(*dto.UpdateScoreRequest))
+					e := p.(*dto.UpdateScoreEvent)
+					return q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
+						PlayerID: e.PlayerID,
+						GameID:   e.GameID,
+						Score:    e.Score,
+					})
 				}
 			}
 		}
