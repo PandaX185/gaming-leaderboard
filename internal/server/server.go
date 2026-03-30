@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -36,6 +37,7 @@ func PrometheusMiddleware() gin.HandlerFunc {
 
 func NewServer(port string) *Server {
 	r := gin.Default()
+	r.Use(cors.Default())
 	r.Use(PrometheusMiddleware())
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 

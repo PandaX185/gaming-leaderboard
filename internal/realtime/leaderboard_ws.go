@@ -21,6 +21,19 @@ type ScoreUpdate struct {
 	Rank     int64   `json:"rank"`
 }
 
+type LeaderboardEntry struct {
+	Rank     int64   `json:"rank"`
+	PlayerID string  `json:"player_id"`
+	Score    float64 `json:"score"`
+}
+
+type LeaderboardSnapshot struct {
+	Type        string             `json:"type"`
+	GameID      string             `json:"game_id"`
+	Leaderboard []LeaderboardEntry `json:"leaderboard"`
+	Timestamp   int64              `json:"timestamp"`
+}
+
 type wsClient struct {
 	conn *websocket.Conn
 	mu   sync.Mutex
@@ -71,6 +84,15 @@ func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
 	}
 
 	client := &wsClient{conn: conn}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	snapshot, snapErr := h.buildLeaderboardSnapshot(ctx, gameID)
+	cancel()
+
+	if snapErr == nil {
+		_ = client.writeJSON(snapshot)
+	}
+
 	h.addClient(gameID, client)
 	defer h.removeClient(gameID, client)
 
@@ -177,6 +199,34 @@ func (h *LeaderboardHub) broadcastDeltaToGame(gameID string, values map[string]a
 			h.removeClient(gameID, client)
 		}
 	}
+}
+
+func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID string) (LeaderboardSnapshot, error) {
+	key := repository.LeaderboardKey(gameID)
+	rows, err := h.rdb.ZRevRangeWithScores(ctx, key, 0, 99).Result()
+	if err != nil {
+		return LeaderboardSnapshot{}, err
+	}
+
+	entries := make([]LeaderboardEntry, 0, len(rows))
+	for i, row := range rows {
+		playerID, ok := row.Member.(string)
+		if !ok {
+			continue
+		}
+		entries = append(entries, LeaderboardEntry{
+			Rank:     int64(i + 1),
+			PlayerID: playerID,
+			Score:    row.Score,
+		})
+	}
+
+	return LeaderboardSnapshot{
+		Type:        "leaderboard_snapshot",
+		GameID:      gameID,
+		Leaderboard: entries,
+		Timestamp:   time.Now().Unix(),
+	}, nil
 }
 
 func (h *LeaderboardHub) getClients(gameID string) []*wsClient {
