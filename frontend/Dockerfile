@@ -8,4 +8,4 @@ WORKDIR /app
 RUN npm install -g http-server
 COPY --from=builder /app .
 EXPOSE 3001
-CMD ["http-server", ".", "-p", "3001"]
+CMD ["http-server", ".", "-p", "3001", "-c-1"]

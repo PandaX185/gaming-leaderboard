@@ -10,6 +10,7 @@ const state = {
 
 const ui = {
     apiBaseUrl: document.getElementById("apiBaseUrl"),
+    gameSelect: document.getElementById("gameSelect"),
     gameId: document.getElementById("gameId"),
     connectBtn: document.getElementById("connectBtn"),
     disconnectBtn: document.getElementById("disconnectBtn"),
@@ -20,6 +21,45 @@ const ui = {
 
 ui.connectBtn.addEventListener("click", connect);
 ui.disconnectBtn.addEventListener("click", disconnect);
+ui.gameSelect.addEventListener("change", onGameSelect);
+ui.apiBaseUrl.addEventListener("change", () => loadGames(normalizeBase(ui.apiBaseUrl.value.trim())));
+
+// Load games on page load
+window.addEventListener("load", () => loadGames(normalizeBase(ui.apiBaseUrl.value.trim())));
+
+async function loadGames(apiBase) {
+    const url = `${apiBase}/api/v1/games?page=1&page_size=100`;
+
+    try {
+        const res = await fetch(url);
+        if (!res.ok) {
+            ui.gameSelect.innerHTML = '<option value="">Failed to load games</option>';
+            return;
+        }
+
+        const payload = await res.json();
+        const games = Array.isArray(payload.items) ? payload.items : [];
+
+        if (games.length === 0) {
+            ui.gameSelect.innerHTML = '<option value="">No games available</option>';
+            return;
+        }
+
+        ui.gameSelect.innerHTML = '<option value="">Select a game...</option>' + games
+            .map(game => `<option value="${game.id}">${game.name}</option>`)
+            .join("");
+    } catch (e) {
+        console.error("Failed to load games:", e);
+        ui.gameSelect.innerHTML = '<option value="">Error loading games</option>';
+    }
+}
+
+function onGameSelect(event) {
+    const gameId = event.target.value;
+    if (gameId) {
+        ui.gameId.value = gameId;
+    }
+}
 
 function connect() {
     const gameId = ui.gameId.value.trim();
