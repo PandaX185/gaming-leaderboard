@@ -20,11 +20,8 @@ func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Cli
 			return NewRedisPlayerQueue(rdb, repo, leaderboardCache)
 		}
 		log.Println("Redis client not available, falling back to in-memory queue")
-		return NewInMemoryPlayerQueue(repo, leaderboardCache)
-	case "in-memory":
-		return NewInMemoryPlayerQueue(repo, leaderboardCache)
 	default:
-		log.Printf("Unknown queue type '%s', defaulting to in-memory queue", queueType)
-		return NewInMemoryPlayerQueue(repo, leaderboardCache)
+		log.Printf("Unknown queue type '%s', falling back to in-memory queue", queueType)
 	}
+	return nil
 }

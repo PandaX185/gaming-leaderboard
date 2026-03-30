@@ -9,7 +9,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
 const leaderboardKeyPattern = "leaderboard:game:%s"
@@ -52,15 +51,28 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 
 	type scoreDoc struct {
 		PlayerID primitive.ObjectID `bson:"player_id"`
+		Username string             `bson:"username"`
 		GameID   primitive.ObjectID `bson:"game_id"`
 		Score    int                `bson:"score"`
 	}
 
-	cursor, err := db.Collection(consts.PlayerGameCollection).Find(
-		ctx,
-		bson.M{},
-		options.Find().SetProjection(bson.M{"player_id": 1, "game_id": 1, "score": 1}),
-	)
+	pipeline := mongo.Pipeline{
+		bson.D{{Key: "$lookup", Value: bson.D{
+			{Key: "from", Value: consts.PlayerCollection},
+			{Key: "localField", Value: "player_id"},
+			{Key: "foreignField", Value: "_id"},
+			{Key: "as", Value: "player"},
+		}}},
+		bson.D{{Key: "$unwind", Value: "$player"}},
+		bson.D{{Key: "$project", Value: bson.D{
+			{Key: "player_id", Value: 1},
+			{Key: "game_id", Value: 1},
+			{Key: "score", Value: 1},
+			{Key: "username", Value: "$player.username"},
+		}}},
+	}
+
+	cursor, err := db.Collection(consts.PlayerGameCollection).Aggregate(ctx, pipeline)
 	if err != nil {
 		return err
 	}

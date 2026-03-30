@@ -22,6 +22,7 @@ type UpdateScoreRequest struct {
 
 type UpdateScoreEvent struct {
 	PlayerID string `json:"player_id"`
+	Username string `json:"username"`
 	GameID   string `json:"game_id"`
 	Score    int    `json:"score"`
 }
