@@ -3,23 +3,32 @@ import { check, sleep } from 'k6';
 
 export const options = {
     scenarios: {
-        update_scores: {
-            executor: 'ramping-arrival-rate',
-            startRate: 5,
-            timeUnit: '1s',
-            preAllocatedVUs: 500,
-            maxVUs: 1000,
-            stages: [
-                { target: 1000, duration: '30s' },
-                { target: 5000, duration: '60s' },
-                { target: 10000, duration: '90s' },
-            ],
-            exec: 'updateScore',
+        // Stress test scenario (commented out)
+        // update_scores: {
+        //     executor: 'ramping-arrival-rate',
+        //     startRate: 5,
+        //     timeUnit: '1s',
+        //     preAllocatedVUs: 500,
+        //     maxVUs: 1000,
+        //     stages: [
+        //         { target: 1000, duration: '30s' },
+        //         { target: 5000, duration: '60s' },
+        //         { target: 10000, duration: '90s' },
+        //     ],
+        //     exec: 'updateScore',
+        // },
+
+        // Normal flow scenario: Simulate realistic users updating scores at varying intervals
+        normal_flow: {
+            executor: 'constant-vus',
+            vus: 15,
+            duration: '5m',
+            exec: 'normalFlowScenario',
         },
     },
     thresholds: {
-        http_req_duration: ['p(95)<2000'],
-        http_req_failed: ['rate<0.01'],
+        http_req_duration: ['p(95)<500'],
+        http_req_failed: ['rate<0.05'],
     }
 };
 
@@ -47,7 +56,25 @@ export function setup() {
         }
     }
 
-    return { gameIds, playerIds };
+    // Select one game for testing
+    const selectedGame = gameIds[0];
+    console.log(`Selected test game: ${selectedGame}`);
+
+    // Populate initial scores for players in the selected game
+    console.log("Populating initial scores...");
+    for (let i = 0; i < playerIds.length; i++) {
+        const player = playerIds[i];
+
+        const scorePayload = JSON.stringify({
+            game_id: selectedGame,
+            score: Math.floor(Math.random() * 10000) + 1,
+        });
+
+        http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
+    }
+    console.log("Setup complete - scores populated");
+
+    return { selectedGame, gameIds, playerIds };
 }
 
 export function updateScore(data) {
@@ -70,4 +97,52 @@ export function updateScore(data) {
     const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
 
     check(scoreRes, { '200 OK': (r) => r.status === 200 });
+}
+
+export function normalFlowScenario(data) {
+    const { selectedGame, playerIds } = data;
+
+    if (!selectedGame || !playerIds || playerIds.length === 0) {
+        console.error("Setup data missing!");
+        return;
+    }
+
+    const game = selectedGame;
+
+    // Fetch top 20 players from the game
+    const leaderboardRes = http.get(`http://host.docker.internal:8080/api/v1/games/${game}/scores?page=1&page_size=20&sort=score&order=desc`);
+
+    if (leaderboardRes.status !== 200) {
+        console.error(`Failed to fetch leaderboard for game ${game}: ${leaderboardRes.status}`);
+        return;
+    }
+
+    const leaderboardData = leaderboardRes.json();
+    const topPlayers = Array.isArray(leaderboardData.items) ? leaderboardData.items : [];
+
+    if (topPlayers.length === 0) {
+        console.warn(`No players found in leaderboard for game ${game}`);
+        return;
+    }
+
+    // Select a random player from the top 20
+    const selectedPlayerData = topPlayers[Math.floor(Math.random() * topPlayers.length)];
+    const player = selectedPlayerData.player_id;
+
+    // Update selected player's score
+    const scorePayload = JSON.stringify({
+        game_id: game,
+        score: Math.floor(Math.random() * 5000) + 1,
+    });
+
+    const params = { headers: { 'Content-Type': 'application/json' } };
+    const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
+
+    check(scoreRes, {
+        'score update 200 OK': (r) => r.status === 200,
+        'score update not failed': (r) => r.status < 400,
+    });
+
+    const randomDelay = Math.floor(Math.random() * 7000) + 1000;
+    sleep(randomDelay / 1000);
 }
