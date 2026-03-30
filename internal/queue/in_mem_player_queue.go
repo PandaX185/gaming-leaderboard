@@ -9,14 +9,16 @@ import (
 )
 
 type InMemoryPlayerQueue struct {
-	events chan Event
-	repo   repository.PlayerRepository
+	events           chan Event
+	repo             repository.PlayerRepository
+	leaderboardCache repository.LeaderboardCache
 }
 
-func NewInMemoryPlayerQueue(r repository.PlayerRepository) IQueue {
+func NewInMemoryPlayerQueue(r repository.PlayerRepository, leaderboardCache repository.LeaderboardCache) IQueue {
 	q := &InMemoryPlayerQueue{
-		events: make(chan Event, 1024),
-		repo:   r,
+		events:           make(chan Event, 1024),
+		repo:             r,
+		leaderboardCache: leaderboardCache,
 	}
 
 	go func() {
@@ -49,11 +51,18 @@ func (q *InMemoryPlayerQueue) PublishEvent(ctx context.Context, data any) error 
 			Payload: v,
 			Handler: func(workerCtx context.Context, payload any) error {
 				e := payload.(*dto.UpdateScoreEvent)
-				return q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
+				err := q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
 					PlayerID: e.PlayerID,
 					GameID:   e.GameID,
 					Score:    e.Score,
 				})
+				if err != nil {
+					return err
+				}
+				if q.leaderboardCache == nil {
+					return nil
+				}
+				return q.leaderboardCache.IncrementScore(workerCtx, e.GameID, e.PlayerID, e.Score)
 			},
 			Attempt: 0,
 		}

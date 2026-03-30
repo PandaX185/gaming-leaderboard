@@ -13,18 +13,18 @@ type IQueue interface {
 	GetEvents() chan Event
 }
 
-func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Client) IQueue {
+func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Client, leaderboardCache repository.LeaderboardCache) IQueue {
 	switch queueType {
 	case "redis":
 		if rdb != nil {
-			return NewRedisPlayerQueue(rdb, repo)
+			return NewRedisPlayerQueue(rdb, repo, leaderboardCache)
 		}
 		log.Println("Redis client not available, falling back to in-memory queue")
-		return NewInMemoryPlayerQueue(repo)
+		return NewInMemoryPlayerQueue(repo, leaderboardCache)
 	case "in-memory":
-		return NewInMemoryPlayerQueue(repo)
+		return NewInMemoryPlayerQueue(repo, leaderboardCache)
 	default:
 		log.Printf("Unknown queue type '%s', defaulting to in-memory queue", queueType)
-		return NewInMemoryPlayerQueue(repo)
+		return NewInMemoryPlayerQueue(repo, leaderboardCache)
 	}
 }

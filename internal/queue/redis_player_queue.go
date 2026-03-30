@@ -23,12 +23,13 @@ const (
 )
 
 type RedisPlayerQueue struct {
-	rdb        *redis.Client
-	repo       repository.PlayerRepository
-	consumerID string
+	rdb              *redis.Client
+	repo             repository.PlayerRepository
+	leaderboardCache repository.LeaderboardCache
+	consumerID       string
 }
 
-func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository) IQueue {
+func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository, leaderboardCache repository.LeaderboardCache) IQueue {
 	err := rdb.XGroupCreateMkStream(context.Background(), consts.PlayerGameCollection, ConsumerGroup, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "exists") {
 		log.Printf("Error creating consumer group: %v", err)
@@ -49,9 +50,10 @@ func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository) IQ
 	}()
 
 	return &RedisPlayerQueue{
-		rdb:        rdb,
-		repo:       repo,
-		consumerID: consumerID,
+		rdb:              rdb,
+		repo:             repo,
+		leaderboardCache: leaderboardCache,
+		consumerID:       consumerID,
 	}
 }
 
@@ -178,11 +180,18 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 				event.Payload = &req
 				dbHandler = func(workerCtx context.Context, p any) error {
 					e := p.(*dto.UpdateScoreEvent)
-					return q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
+					err := q.repo.UpdateScore(workerCtx, &dto.UpdateScoreRequest{
 						PlayerID: e.PlayerID,
 						GameID:   e.GameID,
 						Score:    e.Score,
 					})
+					if err != nil {
+						return err
+					}
+					if q.leaderboardCache == nil {
+						return nil
+					}
+					return q.leaderboardCache.IncrementScore(workerCtx, e.GameID, e.PlayerID, e.Score)
 				}
 			}
 		}

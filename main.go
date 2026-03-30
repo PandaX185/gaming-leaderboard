@@ -39,13 +39,14 @@ func main() {
 
 	playerRepo := repository.NewMongoPlayerRepository(dbName)
 	redisURI := os.Getenv("REDIS_URI")
+	var leaderboardCache repository.LeaderboardCache
 	redisClient, err := db.InitRedis(redisURI)
 	if err != nil {
-		log.Printf("Error connecting to Redis: %v. Continuing without cache.\n", err)
+		log.Printf("Error connecting to Redis: %v. Continuing without leaderboard cache.\n", err)
 	} else {
 		log.Println("Connected to Redis successfully")
-		playerRepo = repository.NewCachedPlayerRepository(playerRepo, redisClient)
-		log.Println("Redis cache enabled for player repository")
+		leaderboardCache = repository.NewRedisLeaderboardCache(redisClient)
+		worker.RebuildLeaderboardsOnStartup(dbName, leaderboardCache)
 	}
 	defer func() {
 		if redisClient != nil {
@@ -53,12 +54,12 @@ func main() {
 		}
 	}()
 
-	playerQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient)
+	playerQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient, leaderboardCache)
 	log.Println("Starting player worker pool...")
 	playerWorker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(5)
 	go playerWorker.Start(context.Background())
 
-	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient)
+	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient, leaderboardCache)
 	log.Println("Starting score worker pool...")
 	scoreWorker := worker.NewPlayerWorker(scoreQueue).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())
