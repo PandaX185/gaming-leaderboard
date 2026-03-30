@@ -234,10 +234,19 @@ function resolvePlayerNameIfMissing(playerId, playerName) {
     const url = `${state.apiBase}/api/v1/players/${encodeURIComponent(playerId)}`;
 
     fetch(url)
-        .then((res) => (res.ok ? res.json() : null))
+        .then((res) => {
+            if (res.ok) {
+                return res.json();
+            }
+            // Cache as not found to avoid future requests
+            state.playerNameCache.set(playerId, playerId);
+            return null;
+        })
         .then((data) => {
+            if (!data) return;
             const resolvedName = String(data?.username || "").trim();
             if (!resolvedName) {
+                state.playerNameCache.set(playerId, playerId);
                 return;
             }
             state.playerNameCache.set(playerId, resolvedName);
@@ -246,6 +255,11 @@ function resolvePlayerNameIfMissing(playerId, playerName) {
                 state.players.set(playerId, { ...current, playerName: resolvedName });
                 renderLeaderboard();
             }
+        })
+        .catch((err) => {
+            console.error("Error fetching player name:", err);
+            // Optionally cache failure to prevent infinite retry loop on network errors
+            state.playerNameCache.set(playerId, playerId);
         })
         .finally(() => {
             state.pendingNameRequests.delete(playerId);
