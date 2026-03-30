@@ -6,6 +6,7 @@ import (
 	"gaming-leaderboard/internal/handler"
 	"gaming-leaderboard/internal/model"
 	"gaming-leaderboard/internal/queue"
+	"gaming-leaderboard/internal/realtime"
 	"gaming-leaderboard/internal/repository"
 	config "gaming-leaderboard/internal/server"
 	"gaming-leaderboard/internal/service"
@@ -47,6 +48,10 @@ func main() {
 		log.Println("Connected to Redis successfully")
 		leaderboardCache = repository.NewRedisLeaderboardCache(redisClient)
 		worker.RebuildLeaderboardsOnStartup(dbName, leaderboardCache)
+
+		leaderboardHub := realtime.NewLeaderboardHub(redisClient, 100)
+		leaderboardWSHandler := handler.NewLeaderboardWSHandler(leaderboardHub, apiPrefix)
+		leaderboardWSHandler.RegisterRoutes()
 	}
 	defer func() {
 		if redisClient != nil {

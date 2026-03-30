@@ -13,6 +13,15 @@ import (
 )
 
 const leaderboardKeyPattern = "leaderboard:game:%s"
+const leaderboardUpdatesStreamPattern = "leaderboard:updates:game:%s"
+
+func LeaderboardKey(gameID string) string {
+	return fmt.Sprintf(leaderboardKeyPattern, gameID)
+}
+
+func LeaderboardUpdatesStream(gameID string) string {
+	return fmt.Sprintf(leaderboardUpdatesStreamPattern, gameID)
+}
 
 type LeaderboardCache interface {
 	IncrementScore(context.Context, string, string, int) error
@@ -32,7 +41,7 @@ func (c *redisLeaderboardCache) IncrementScore(ctx context.Context, gameID strin
 		return nil
 	}
 
-	key := fmt.Sprintf(leaderboardKeyPattern, gameID)
+	key := LeaderboardKey(gameID)
 	return c.rdb.ZIncrBy(ctx, key, float64(delta), playerID).Err()
 }
 
@@ -75,7 +84,7 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 			return err
 		}
 
-		key := fmt.Sprintf(leaderboardKeyPattern, doc.GameID.Hex())
+		key := LeaderboardKey(doc.GameID.Hex())
 		pipe.ZAdd(ctx, key, redis.Z{Score: float64(doc.Score), Member: doc.PlayerID.Hex()})
 		queued++
 

@@ -207,6 +207,12 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 						metrics.QueueAckTotal.WithLabelValues(eventType, "error").Inc()
 					} else {
 						metrics.QueueAckTotal.WithLabelValues(eventType, "success").Inc()
+						if eventType == "ScoreUpdated" {
+							scoreEvent, ok := p.(*dto.UpdateScoreEvent)
+							if ok {
+								q.emitScoreDeltaUpdate(workerCtx, scoreEvent)
+							}
+						}
 					}
 				}
 				return err
@@ -222,5 +228,30 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 			}
 			events <- event
 		}
+	}
+}
+
+func (q *RedisPlayerQueue) emitScoreDeltaUpdate(ctx context.Context, scoreEvent *dto.UpdateScoreEvent) {
+	leaderboardKey := repository.LeaderboardKey(scoreEvent.GameID)
+	score, scoreErr := q.rdb.ZScore(ctx, leaderboardKey, scoreEvent.PlayerID).Result()
+	rank, rankErr := q.rdb.ZRevRank(ctx, leaderboardKey, scoreEvent.PlayerID).Result()
+	if scoreErr != nil || rankErr != nil {
+		log.Printf("Failed to resolve score/rank for game %s player %s: scoreErr=%v rankErr=%v", scoreEvent.GameID, scoreEvent.PlayerID, scoreErr, rankErr)
+		return
+	}
+
+	stream := repository.LeaderboardUpdatesStream(scoreEvent.GameID)
+	if addErr := q.rdb.XAdd(ctx, &redis.XAddArgs{
+		Stream: stream,
+		MaxLen: 10000,
+		Approx: true,
+		Values: map[string]any{
+			"type":      "score_update",
+			"player_id": scoreEvent.PlayerID,
+			"score":     score,
+			"rank":      rank + 1,
+		},
+	}).Err(); addErr != nil {
+		log.Printf("Failed to append leaderboard stream update for game %s: %v", scoreEvent.GameID, addErr)
 	}
 }
