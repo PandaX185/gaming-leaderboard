@@ -90,9 +90,10 @@ h1 {
 
 .controls {
     padding: 1rem;
-    display: grid;
+    display: flex;
     gap: 1rem;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    flex-wrap: wrap;
+    align-items: self-end;
 }
 
 .controls label {
@@ -216,10 +217,37 @@ button:disabled {
 .board tbody td {
     padding: 0.62rem 0.4rem;
     border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    transition: background 0.3s ease;
+}
+
+.trend-icon {
+    font-size: 0.75rem;
+    margin-left: 0.4rem;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.trend-up td {
+    background: rgba(43, 217, 161, 0.12);
+}
+
+.trend-up .trend-icon {
+    color: var(--accent-2);
+    animation: bounce-up 0.5s ease-out infinite alternate;
+}
+
+.trend-down td {
+    background: rgba(255, 93, 93, 0.12);
+}
+
+.trend-down .trend-icon {
+    color: var(--danger);
+    animation: bounce-down 0.5s ease-out infinite alternate;
 }
 
 .board tbody tr {
     animation: reveal 180ms ease;
+    transition: transform 0.3s ease;
 }
 
 .rank {
@@ -258,6 +286,26 @@ button:disabled {
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+@keyframes bounce-up {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-3px);
+    }
+}
+
+@keyframes bounce-down {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(3px);
     }
 }
 

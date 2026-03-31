@@ -8,7 +8,7 @@ import (
 	"gaming-leaderboard/internal/repository"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type PlayerService struct {
@@ -25,7 +25,7 @@ func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IQueue) *P
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayerRequest) (*dto.PlayerResponse, error) {
 	data = &dto.CreatePlayerRequest{
-		ID:        primitive.NewObjectID(),
+		ID:        bson.NewObjectID(),
 		Username:  data.Username,
 		Password:  data.Password,
 		CreatedAt: time.Now(),

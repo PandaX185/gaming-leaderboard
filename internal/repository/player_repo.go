@@ -8,7 +8,7 @@ import (
 	"gaming-leaderboard/internal/model"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -132,11 +132,11 @@ func (r *mongoPlayerRepository) startInsertBatchWorker() {
 }
 
 func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, data *dto.UpdateScoreRequest) error {
-	objID, err := primitive.ObjectIDFromHex(data.PlayerID)
+	objID, err := bson.ObjectIDFromHex(data.PlayerID)
 	if err != nil {
 		return err
 	}
-	gameObjID, err := primitive.ObjectIDFromHex(data.GameID)
+	gameObjID, err := bson.ObjectIDFromHex(data.GameID)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, data *dto.Updat
 		"$inc": bson.M{"score": data.Score},
 		"$set": bson.M{"updated_at": time.Now()},
 		"$setOnInsert": bson.M{
-			"_id":        primitive.NewObjectID(),
+			"_id":        bson.NewObjectID(),
 			"created_at": time.Now(),
 		},
 	}
@@ -160,7 +160,7 @@ func (r *mongoPlayerRepository) UpdateScore(ctx context.Context, data *dto.Updat
 }
 
 func (r *mongoPlayerRepository) GetByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {
-	objID, err := primitive.ObjectIDFromHex(id)
+	objID, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}

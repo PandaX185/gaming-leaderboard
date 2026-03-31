@@ -4,16 +4,16 @@ import (
 	"gaming-leaderboard/internal/dto"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type PlayerGame struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty"`
-	PlayerID  primitive.ObjectID `bson:"player_id"`
-	GameID    primitive.ObjectID `bson:"game_id"`
-	Score     int                `bson:"score"`
-	CreatedAt time.Time          `bson:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at,omitempty"`
+	ID        bson.ObjectID `bson:"_id,omitempty"`
+	PlayerID  bson.ObjectID `bson:"player_id"`
+	GameID    bson.ObjectID `bson:"game_id"`
+	Score     int           `bson:"score"`
+	CreatedAt time.Time     `bson:"created_at"`
+	UpdatedAt time.Time     `bson:"updated_at,omitempty"`
 }
 
 func (p PlayerGame) ToResponse() *dto.GameScoreResponse {
@@ -24,4 +24,3 @@ func (p PlayerGame) ToResponse() *dto.GameScoreResponse {
 		UpdatedAt: p.UpdatedAt,
 	}
 }
-

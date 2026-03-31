@@ -6,7 +6,7 @@ import (
 	"gaming-leaderboard/internal/consts"
 
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -50,8 +50,8 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 	}
 
 	type scoreDoc struct {
-		PlayerID primitive.ObjectID `bson:"player_id"`
-		GameID   primitive.ObjectID `bson:"game_id"`
+		PlayerID bson.ObjectID `bson:"player_id"`
+		GameID   bson.ObjectID `bson:"game_id"`
 		Score    int                `bson:"score"`
 	}
 

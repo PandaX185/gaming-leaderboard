@@ -7,7 +7,7 @@ import (
 	"gaming-leaderboard/internal/model"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
@@ -34,7 +34,7 @@ type mongoGameRepository struct {
 
 func (r *mongoGameRepository) Insert(ctx context.Context, data *dto.CreateGameRequest) (*dto.GameResponse, error) {
 	doc := model.Game{}.FromCreateDTO(data)
-	doc.ID = primitive.NewObjectID()
+	doc.ID = bson.NewObjectID()
 
 	_, err := r.db.Collection(consts.GameCollection).InsertOne(ctx, doc)
 	if err != nil {
@@ -44,7 +44,7 @@ func (r *mongoGameRepository) Insert(ctx context.Context, data *dto.CreateGameRe
 }
 
 func (r *mongoGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
-	objID, err := primitive.ObjectIDFromHex(id)
+	objID, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (r *mongoGameRepository) GetAll(ctx context.Context, params *dto.Pagination
 }
 
 func (r *mongoGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
-	objID, err := primitive.ObjectIDFromHex(gameID)
+	objID, err := bson.ObjectIDFromHex(gameID)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (r *mongoGameRepository) GetScores(ctx context.Context, gameID string, para
 }
 
 func (r *mongoGameRepository) Update(ctx context.Context, id string, data *dto.UpdateGameRequest) (*dto.GameResponse, error) {
-	objID, err := primitive.ObjectIDFromHex(id)
+	objID, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +194,7 @@ func (r *mongoGameRepository) Update(ctx context.Context, id string, data *dto.U
 }
 
 func (r *mongoGameRepository) Delete(ctx context.Context, id string) error {
-	objID, err := primitive.ObjectIDFromHex(id)
+	objID, err := bson.ObjectIDFromHex(id)
 	if err != nil {
 		return err
 	}

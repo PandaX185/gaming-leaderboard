@@ -4,6 +4,8 @@ const state = {
     gameId: "",
     players: new Map(),
     flashUntil: new Map(),
+    ranks: new Map(),
+    rankTrends: new Map(), // playerId -> 'up' | 'down'
 };
 
 const ui = {
@@ -77,6 +79,8 @@ function connect() {
     state.apiBase = apiBase;
     state.players.clear();
     state.flashUntil.clear();
+    state.ranks.clear();
+    state.rankTrends.clear();
     renderLeaderboard();
 
     loadInitialLeaderboard(apiBase, gameId).finally(() => {
@@ -186,6 +190,8 @@ async function loadInitialLeaderboard(apiBase, gameId) {
 function handleSnapshot(snapshot) {
     state.players.clear();
     state.flashUntil.clear();
+    state.ranks.clear();
+    state.rankTrends.clear();
 
     console.log("Received leaderboard snapshot with", snapshot);
     if (Array.isArray(snapshot.leaderboard)) {
@@ -213,19 +219,59 @@ function renderLeaderboard() {
         return;
     }
 
+    const newRanks = new Map();
+    const rankChanges = new Map();
+
+    rows.forEach((row, index) => {
+        newRanks.set(row.playerId, index);
+        const oldRank = state.ranks.get(row.playerId);
+
+        if (oldRank !== undefined) {
+            if (oldRank > index) {
+                state.rankTrends.set(row.playerId, { dir: 'up', expires: now + 3000 });
+                scheduleTrendCleanup(row.playerId);
+            } else if (oldRank < index) {
+                state.rankTrends.set(row.playerId, { dir: 'down', expires: now + 3000 });
+                scheduleTrendCleanup(row.playerId);
+            }
+        }
+    });
+    state.ranks = newRanks;
+
     ui.leaderboardBody.innerHTML = rows
         .map((row, i) => {
             const isFlashing = (state.flashUntil.get(row.playerId) || 0) > now;
+
+            let trend = '';
+            let trendClass = '';
+            const trendData = state.rankTrends.get(row.playerId);
+            if (trendData && trendData.expires > now) {
+                trendClass = trendData.dir === 'up' ? 'trend-up' : 'trend-down';
+                trend = trendData.dir === 'up' ? ' ▲' : ' ▼';
+            } else if (trendData) {
+                state.rankTrends.delete(row.playerId);
+            }
+
             const displayName = row.playerId;
             return `
-      <tr>
-        <td class="rank ${isFlashing ? "flash" : ""}">#${i + 1}</td>
+      <tr class="${trendClass}">
+        <td class="rank ${isFlashing ? "flash" : ""}">#${i + 1}<span class="trend-icon">${trend}</span></td>
         <td class="player">${escapeHtml(displayName)}</td>
         <td class="score ${isFlashing ? "flash" : ""}">${formatScore(row.score)}</td>
       </tr>
     `;
         })
         .join("");
+}
+
+function scheduleTrendCleanup(playerId) {
+    setTimeout(() => {
+        const data = state.rankTrends.get(playerId);
+        if (data && data.expires <= Date.now()) {
+            state.rankTrends.delete(playerId);
+            renderLeaderboard();
+        }
+    }, 3100);
 }
 
 function scheduleFlashCleanup(playerId) {

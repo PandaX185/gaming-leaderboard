@@ -4,14 +4,14 @@ import (
 	"gaming-leaderboard/internal/dto"
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Game struct {
-	ID        primitive.ObjectID `bson:"_id,omitempty"`
-	Name      string             `bson:"name,unique"`
-	CreatedAt time.Time          `bson:"created_at"`
-	UpdatedAt time.Time          `bson:"updated_at,omitempty"`
+	ID        bson.ObjectID `bson:"_id,omitempty"`
+	Name      string        `bson:"name,unique"`
+	CreatedAt time.Time     `bson:"created_at"`
+	UpdatedAt time.Time     `bson:"updated_at,omitempty"`
 }
 
 func (g Game) FromCreateDTO(data *dto.CreateGameRequest) Game {

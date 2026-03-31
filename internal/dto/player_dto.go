@@ -3,15 +3,15 @@ package dto
 import (
 	"time"
 
-	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type CreatePlayerRequest struct {
-	ID        primitive.ObjectID `json:"-"`
-	Username  string             `json:"username" validate:"required,min=3" example:"player1"`
-	Password  string             `json:"password" validate:"required,min=6" example:"secret123"`
-	CreatedAt time.Time          `json:"created_at"`
-	UpdatedAt time.Time          `json:"updated_at"`
+	ID        bson.ObjectID `json:"-"`
+	Username  string        `json:"username" validate:"required,min=3" example:"player1"`
+	Password  string        `json:"password" validate:"required,min=6" example:"secret123"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
 type UpdateScoreRequest struct {
