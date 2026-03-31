@@ -115,21 +115,6 @@ docker-compose up --build
 
 ---
 
-## Configuration
-
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `DB_URI` | ✅ | – | MongoDB connection string |
-| `DB_NAME` | ✅ | – | Database name |
-| `PORT` | ✅ | – | Server listen address (e.g. `:8080`) |
-| `QUEUE_TYPE` | ✅ | – | Event queue type (`redis`) |
-| `REDIS_URI` | ❌ | – | Redis connection string; omit to disable caching |
-| `WORKER_COUNT` | ❌ | `100` | Background worker pool size |
-
-> **Note:** `DB_URI`, `DB_NAME`, and `PORT` are required – the application will panic on startup if they are missing.
-
----
-
 ## API Reference
 
 Base path: `/api/v1`
