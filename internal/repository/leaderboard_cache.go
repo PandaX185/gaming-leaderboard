@@ -51,24 +51,15 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 
 	type scoreDoc struct {
 		PlayerID primitive.ObjectID `bson:"player_id"`
-		Username string             `bson:"username"`
 		GameID   primitive.ObjectID `bson:"game_id"`
 		Score    int                `bson:"score"`
 	}
 
 	pipeline := mongo.Pipeline{
-		bson.D{{Key: "$lookup", Value: bson.D{
-			{Key: "from", Value: consts.PlayerCollection},
-			{Key: "localField", Value: "player_id"},
-			{Key: "foreignField", Value: "_id"},
-			{Key: "as", Value: "player"},
-		}}},
-		bson.D{{Key: "$unwind", Value: "$player"}},
 		bson.D{{Key: "$project", Value: bson.D{
 			{Key: "player_id", Value: 1},
 			{Key: "game_id", Value: 1},
 			{Key: "score", Value: 1},
-			{Key: "username", Value: "$player.username"},
 		}}},
 	}
 

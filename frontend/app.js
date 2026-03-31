@@ -4,8 +4,6 @@ const state = {
     gameId: "",
     players: new Map(),
     flashUntil: new Map(),
-    playerNameCache: new Map(),
-    pendingNameRequests: new Set(),
 };
 
 const ui = {
@@ -56,9 +54,7 @@ async function loadGames(apiBase) {
 
 function onGameSelect(event) {
     const gameId = event.target.value;
-    if (gameId) {
-        ui.gameId.value = gameId;
-    }
+    ui.gameId.value = gameId;
 }
 
 function connect() {
@@ -81,8 +77,6 @@ function connect() {
     state.apiBase = apiBase;
     state.players.clear();
     state.flashUntil.clear();
-    state.playerNameCache.clear();
-    state.pendingNameRequests.clear();
     renderLeaderboard();
 
     loadInitialLeaderboard(apiBase, gameId).finally(() => {
@@ -130,18 +124,16 @@ function openSocket(apiBase, gameId) {
             }
 
             const playerId = String(data.player_id || "").trim();
-            const playerName = String(data.player_name || "").trim();
             const score = Number(data.score);
             if (!playerId || Number.isNaN(score)) {
                 return;
             }
 
-            state.players.set(playerId, { playerId, playerName, score });
-            resolvePlayerNameIfMissing(playerId, playerName);
+            state.players.set(playerId, { playerId, score });
             state.flashUntil.set(playerId, Date.now() + 1200);
             renderLeaderboard();
             scheduleFlashCleanup(playerId);
-            const displayName = playerName || playerId;
+            const displayName = playerId;
             ui.eventMeta.textContent = `Latest: ${displayName} => ${score} at ${new Date().toLocaleTimeString()}`;
         } catch {
             ui.eventMeta.textContent = "Received malformed message";
@@ -177,13 +169,11 @@ async function loadInitialLeaderboard(apiBase, gameId) {
 
         for (const item of items) {
             const playerId = String(item.player_id || "").trim();
-            const playerName = String(item.player_name || "").trim();
             const score = Number(item.score);
             if (!playerId || Number.isNaN(score)) {
                 continue;
             }
-            state.players.set(playerId, { playerId, playerName, score });
-            resolvePlayerNameIfMissing(playerId, playerName);
+            state.players.set(playerId, { playerId, score });
         }
 
         renderLeaderboard();
@@ -201,69 +191,15 @@ function handleSnapshot(snapshot) {
     if (Array.isArray(snapshot.leaderboard)) {
         for (const entry of snapshot.leaderboard) {
             const playerId = String(entry.player_id || "").trim();
-            const playerName = String(entry.player_name || "").trim();
             const score = Number(entry.score);
             if (!playerId || Number.isNaN(score)) {
                 continue;
             }
-            state.players.set(playerId, { playerId, playerName, score });
-            resolvePlayerNameIfMissing(playerId, playerName);
+            state.players.set(playerId, { playerId, score });
         }
     }
 
     renderLeaderboard();
-}
-
-function resolvePlayerNameIfMissing(playerId, playerName) {
-    if (playerName) {
-        state.playerNameCache.set(playerId, playerName);
-        return;
-    }
-    if (state.playerNameCache.has(playerId) || state.pendingNameRequests.has(playerId)) {
-        const cached = state.playerNameCache.get(playerId);
-        if (cached) {
-            const current = state.players.get(playerId);
-            if (current && !current.playerName) {
-                state.players.set(playerId, { ...current, playerName: cached });
-            }
-        }
-        return;
-    }
-
-    state.pendingNameRequests.add(playerId);
-    const url = `${state.apiBase}/api/v1/players/${encodeURIComponent(playerId)}`;
-
-    fetch(url)
-        .then((res) => {
-            if (res.ok) {
-                return res.json();
-            }
-            // Cache as not found to avoid future requests
-            state.playerNameCache.set(playerId, playerId);
-            return null;
-        })
-        .then((data) => {
-            if (!data) return;
-            const resolvedName = String(data?.username || "").trim();
-            if (!resolvedName) {
-                state.playerNameCache.set(playerId, playerId);
-                return;
-            }
-            state.playerNameCache.set(playerId, resolvedName);
-            const current = state.players.get(playerId);
-            if (current) {
-                state.players.set(playerId, { ...current, playerName: resolvedName });
-                renderLeaderboard();
-            }
-        })
-        .catch((err) => {
-            console.error("Error fetching player name:", err);
-            // Optionally cache failure to prevent infinite retry loop on network errors
-            state.playerNameCache.set(playerId, playerId);
-        })
-        .finally(() => {
-            state.pendingNameRequests.delete(playerId);
-        });
 }
 
 function renderLeaderboard() {
@@ -280,7 +216,7 @@ function renderLeaderboard() {
     ui.leaderboardBody.innerHTML = rows
         .map((row, i) => {
             const isFlashing = (state.flashUntil.get(row.playerId) || 0) > now;
-            const displayName = row.playerName || row.playerId;
+            const displayName = row.playerId;
             return `
       <tr>
         <td class="rank ${isFlashing ? "flash" : ""}">#${i + 1}</td>
