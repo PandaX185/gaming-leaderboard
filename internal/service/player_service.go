@@ -39,14 +39,8 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 }
 
 func (s *PlayerService) UpdatePlayerScore(ctx context.Context, id string, gameId string, score int) (*dto.ScoreUpdated, error) {
-	player, err := s.GetPlayerByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
 	data := &dto.UpdateScoreEvent{
 		PlayerID: id,
-		Username: player.Username,
 		GameID:   gameId,
 		Score:    score,
 	}

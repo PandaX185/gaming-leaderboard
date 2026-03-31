@@ -14,14 +14,12 @@ type IQueue interface {
 }
 
 func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Client, leaderboardCache repository.LeaderboardCache) IQueue {
-	switch queueType {
-	case "redis":
-		if rdb != nil {
-			return NewRedisPlayerQueue(rdb, repo, leaderboardCache)
-		}
-		log.Println("Redis client not available, falling back to in-memory queue")
-	default:
-		log.Printf("Unknown queue type '%s', falling back to in-memory queue", queueType)
+	if queueType != "redis" {
+		log.Panicf("Unsupported queue type '%s': only 'redis' is allowed", queueType)
 	}
-	return nil
+	if rdb == nil {
+		log.Panic("Redis queue selected but Redis client is nil")
+	}
+
+	return NewRedisPlayerQueue(rdb, repo, leaderboardCache)
 }

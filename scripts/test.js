@@ -3,7 +3,7 @@ import { check, sleep } from 'k6';
 
 export const options = {
     scenarios: {
-        // Stress test scenario (commented out)
+        // Stress test scenario
         // update_scores: {
         //     executor: 'ramping-arrival-rate',
         //     startRate: 5,
@@ -143,6 +143,6 @@ export function normalFlowScenario(data) {
         'score update not failed': (r) => r.status < 400,
     });
 
-    const randomDelay = Math.floor(Math.random() * 7000) + 1000;
+    const randomDelay = Math.floor(Math.random() * 7000) + 3000; // 3-10 seconds
     sleep(randomDelay / 1000);
 }
