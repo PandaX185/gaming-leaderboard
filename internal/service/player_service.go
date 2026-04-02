@@ -8,7 +8,7 @@ import (
 	"gaming-leaderboard/internal/repository"
 	"time"
 
-	"go.mongodb.org/mongo-driver/v2/bson"
+	"github.com/google/uuid"
 )
 
 type PlayerService struct {
@@ -24,8 +24,12 @@ func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IQueue) *P
 }
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayerRequest) (*dto.PlayerResponse, error) {
+	playerId, err := uuid.NewV7()
+	if err != nil {
+		return nil, err
+	}
 	data = &dto.CreatePlayerRequest{
-		ID:        bson.NewObjectID(),
+		ID:        playerId.String(),
 		Username:  data.Username,
 		Password:  data.Password,
 		CreatedAt: time.Now(),
@@ -36,21 +40,6 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 		return nil, err
 	}
 	return model.Player{}.FromDTO(data).ToResponse(), nil
-}
-
-func (s *PlayerService) UpdatePlayerScore(ctx context.Context, id string, gameId string, score int) (*dto.ScoreUpdated, error) {
-	data := &dto.UpdateScoreEvent{
-		PlayerID: id,
-		GameID:   gameId,
-		Score:    score,
-	}
-
-	if err := s.playerQ.PublishEvent(ctx, data); err != nil {
-		return nil, err
-	}
-	return &dto.ScoreUpdated{
-		Message: "Score update queued successfully",
-	}, nil
 }
 
 func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {

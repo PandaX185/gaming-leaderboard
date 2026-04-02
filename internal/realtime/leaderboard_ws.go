@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 type ScoreUpdate struct {
@@ -49,7 +48,6 @@ func (c *wsClient) writeJSON(payload any) error {
 
 type LeaderboardHub struct {
 	rdb *redis.Client
-	db  *mongo.Database
 
 	upgrader websocket.Upgrader
 
@@ -58,10 +56,9 @@ type LeaderboardHub struct {
 	stops   map[string]context.CancelFunc
 }
 
-func NewLeaderboardHub(rdb *redis.Client, db *mongo.Database) *LeaderboardHub {
+func NewLeaderboardHub(rdb *redis.Client) *LeaderboardHub {
 	return &LeaderboardHub{
 		rdb: rdb,
-		db:  db,
 		upgrader: websocket.Upgrader{
 			ReadBufferSize:  1024,
 			WriteBufferSize: 1024,

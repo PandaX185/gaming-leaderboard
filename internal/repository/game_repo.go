@@ -2,15 +2,9 @@ package repository
 
 import (
 	"context"
-	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
-	"gaming-leaderboard/internal/model"
-	"time"
 
-	
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
-	"go.mongodb.org/mongo-driver/v2/mongo/options"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type GameRepository interface {
@@ -22,183 +16,105 @@ type GameRepository interface {
 	Delete(context.Context, string) error
 }
 
-func NewMongoGameRepository(db *mongo.Database) GameRepository {
-	return &mongoGameRepository{
-		db: db,
-	}
+type postgresGameRepository struct {
+	db *pgxpool.Pool
 }
 
-type mongoGameRepository struct {
-	db *mongo.Database
+func NewPostgresGameRepository(db *pgxpool.Pool) GameRepository {
+	return &postgresGameRepository{db: db}
 }
 
-func (r *mongoGameRepository) Insert(ctx context.Context, data *dto.CreateGameRequest) (*dto.GameResponse, error) {
-	doc := model.Game{}.FromCreateDTO(data)
-	doc.ID = bson.NewObjectID()
-
-	_, err := r.db.Collection(consts.GameCollection).InsertOne(ctx, doc)
-	if err != nil {
+func (r *postgresGameRepository) Insert(ctx context.Context, req *dto.CreateGameRequest) (*dto.GameResponse, error) {
+	var game dto.GameResponse
+	if err := r.db.
+		QueryRow(ctx, "insert into games(name) values ($1) returning *", req.Name).
+		Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
 		return nil, err
 	}
-	return doc.ToResponse(), nil
+	return &game, nil
 }
 
-func (r *mongoGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
-	objID, err := bson.ObjectIDFromHex(id)
-	if err != nil {
+func (r *postgresGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
+	var game dto.GameResponse
+	if err := r.db.
+		QueryRow(ctx, "select id, name, created_at, updated_at from games where id = $1", id).
+		Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
 		return nil, err
 	}
-
-	var game model.Game
-	err = r.db.Collection(consts.GameCollection).FindOne(ctx, bson.M{"_id": objID}).Decode(&game)
-	if err != nil {
-		return nil, err
-	}
-	return game.ToResponse(), nil
+	return &game, nil
 }
 
-func (r *mongoGameRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
-	sortField := "updated_at"
-	if params.Sort != "" {
-		sortField = params.Sort
-	}
-	sortOrder := -1
-	if params.Order == "asc" {
-		sortOrder = 1
-	}
-
-	skip := (params.Page - 1) * params.PageSize
-	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)).SetSort(bson.M{sortField: sortOrder})
-	cursor, err := r.db.Collection(consts.GameCollection).Find(ctx, bson.M{}, opts)
+func (r *postgresGameRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	rows, err := r.db.Query(ctx, "select id, name, created_at, updated_at from games limit $1 offset $2", params.PageSize, (params.Page-1)*params.PageSize)
 	if err != nil {
 		return nil, err
 	}
-	var games []model.Game
-	if err = cursor.All(ctx, &games); err != nil {
+	defer rows.Close()
+
+	var games []dto.GameResponse
+	for rows.Next() {
+		var game dto.GameResponse
+		if err := rows.Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
+			return nil, err
+		}
+		games = append(games, game)
+	}
+
+	var totalCount int
+	if err := r.db.QueryRow(ctx, "select count(*) from games").Scan(&totalCount); err != nil {
 		return nil, err
-	}
-
-	var responses []*dto.GameResponse
-	for _, game := range games {
-		responses = append(responses, game.ToResponse())
-	}
-	count, err := r.db.Collection(consts.GameCollection).CountDocuments(ctx, bson.M{})
-	if err != nil {
-		return nil, err
-	}
-
-	if params.Page <= 0 {
-		params.Page = 1
-	}
-	if params.PageSize <= 0 {
-		params.PageSize = 10
-	}
-
-	totalPages := int(count) / params.PageSize
-	if int(count)%params.PageSize > 0 {
-		totalPages++
 	}
 
 	return &dto.PaginatedResponse{
-		TotalItems: int(count),
-		Items:      responses,
-		TotalPages: totalPages,
+		Items:      games,
+		TotalItems: totalCount,
 		Page:       params.Page,
 		PageSize:   params.PageSize,
-		HasNext:    params.Page*params.PageSize < int(count),
-		HasPrev:    params.Page > 1,
 	}, nil
 }
 
-func (r *mongoGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
-	objID, err := bson.ObjectIDFromHex(gameID)
+func (r *postgresGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+	rows, err := r.db.Query(ctx, "select player_id, score, created_at, updated_at from scores where game_id = $1 limit $2 offset $3", gameID, params.PageSize, (params.Page-1)*params.PageSize)
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	sortField := "score"
-	if params.Sort != "" {
-		sortField = params.Sort
-	}
-	sortOrder := -1
-	if params.Order == "asc" {
-		sortOrder = 1
+	var scores []dto.ScoreResponse
+	for rows.Next() {
+		var score dto.ScoreResponse
+		if err := rows.Scan(&score.PlayerID, &score.Score, &score.CreatedAt, &score.UpdatedAt); err != nil {
+			return nil, err
+		}
+		scores = append(scores, score)
 	}
 
-	skip := (params.Page - 1) * params.PageSize
-	opts := options.Find().SetSkip(int64(skip)).SetLimit(int64(params.PageSize)).SetSort(bson.M{sortField: sortOrder})
-	cursor, err := r.db.Collection(consts.PlayerGameCollection).Find(ctx, bson.M{"game_id": objID}, opts)
-	if err != nil {
+	var totalCount int
+	if err := r.db.QueryRow(ctx, "select count(*) from scores where game_id = $1", gameID).Scan(&totalCount); err != nil {
 		return nil, err
-	}
-	var scores []model.PlayerGame
-	if err = cursor.All(ctx, &scores); err != nil {
-		return nil, err
-	}
-
-	var responses []*dto.GameScoreResponse
-	for _, score := range scores {
-		responses = append(responses, &dto.GameScoreResponse{
-			PlayerID:  score.PlayerID.Hex(),
-			Score:     score.Score,
-			CreatedAt: score.CreatedAt,
-			UpdatedAt: score.UpdatedAt,
-		})
-	}
-	count, err := r.db.Collection(consts.PlayerGameCollection).CountDocuments(ctx, bson.M{"game_id": objID})
-	if err != nil {
-		return nil, err
-	}
-
-	if params.Page <= 0 {
-		params.Page = 1
-	}
-	if params.PageSize <= 0 {
-		params.PageSize = 10
-	}
-
-	totalPages := int(count) / params.PageSize
-	if int(count)%params.PageSize > 0 {
-		totalPages++
 	}
 
 	return &dto.PaginatedResponse{
-		TotalItems: int(count),
-		Items:      responses,
-		TotalPages: totalPages,
+		Items:      scores,
+		TotalItems: totalCount,
 		Page:       params.Page,
 		PageSize:   params.PageSize,
-		HasNext:    params.Page*params.PageSize < int(count),
-		HasPrev:    params.Page > 1,
 	}, nil
 }
 
-func (r *mongoGameRepository) Update(ctx context.Context, id string, data *dto.UpdateGameRequest) (*dto.GameResponse, error) {
-	objID, err := bson.ObjectIDFromHex(id)
-	if err != nil {
+func (r *postgresGameRepository) Update(ctx context.Context, id string, req *dto.UpdateGameRequest) (*dto.GameResponse, error) {
+	var game dto.GameResponse
+	if err := r.db.
+		QueryRow(ctx, "update games set name = $1, updated_at = now() where id = $2 returning id, name, created_at, updated_at", req.Name, id).
+		Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
 		return nil, err
 	}
-
-	update := bson.M{
-		"$set": bson.M{
-			"name":       data.Name,
-			"updated_at": time.Now(),
-		},
-	}
-
-	_, err = r.db.Collection(consts.GameCollection).UpdateOne(ctx, bson.M{"_id": objID}, update)
-	if err != nil {
-		return nil, err
-	}
-	return r.GetByID(ctx, id)
+	return &game, nil
 }
 
-func (r *mongoGameRepository) Delete(ctx context.Context, id string) error {
-	objID, err := bson.ObjectIDFromHex(id)
-	if err != nil {
+func (r *postgresGameRepository) Delete(ctx context.Context, id string) error {
+	if _, err := r.db.Exec(ctx, "delete from games where id = $1", id); err != nil {
 		return err
 	}
-
-	_, err = r.db.Collection(consts.GameCollection).DeleteOne(ctx, bson.M{"_id": objID})
-	return err
+	return nil
 }

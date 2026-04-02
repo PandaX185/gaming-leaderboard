@@ -21,7 +21,6 @@ func NewPlayerHandler(svc *service.PlayerService, rg *gin.RouterGroup) *PlayerHa
 
 func (h *PlayerHandler) RegisterRoutes() {
 	h.rg.POST("/players", h.CreatePlayer)
-	h.rg.PUT("/players/:id/score", h.UpdatePlayerScore)
 	h.rg.GET("/players/:id", h.GetPlayerByID)
 	h.rg.GET("/players", h.GetAllPlayers)
 }
@@ -44,27 +43,6 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	}
 
 	c.JSON(201, resp)
-}
-
-func (h *PlayerHandler) UpdatePlayerScore(c *gin.Context) {
-	id := c.Param("id")
-	data := &dto.UpdateScoreRequest{}
-	if err := c.ShouldBindJSON(data); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
-		return
-	}
-	if err := dto.ValidateStructRequest(data); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
-		return
-	}
-
-	resp, err := h.svc.UpdatePlayerScore(c.Request.Context(), id, data.GameID, data.Score)
-	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to update player score " + err.Error()})
-		return
-	}
-
-	c.JSON(200, resp)
 }
 
 func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {

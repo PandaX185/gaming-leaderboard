@@ -11,15 +11,8 @@ type UpdateGameRequest struct {
 }
 
 type GameResponse struct {
-	ID        string    `json:"id" example:"60c72b2f9b1d4c3a5f8e4b1"`
+	ID        string    `json:"id"`
 	Name      string    `json:"name" example:"Space Invaders"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
-type GameScoreResponse struct {
-	PlayerID  string    `json:"player_id" example:"60c72b2f9b1d4c3a5f8e4b1"`
-	Score     int       `json:"score" example:"100"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

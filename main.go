@@ -4,7 +4,6 @@ import (
 	"context"
 	"gaming-leaderboard/internal/db"
 	"gaming-leaderboard/internal/handler"
-	"gaming-leaderboard/internal/model"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/realtime"
 	"gaming-leaderboard/internal/repository"
@@ -26,19 +25,18 @@ func main() {
 
 	metrics.Init()
 
-	dbInstance, err := db.Init(os.Getenv("DB_URI"))
-	if err != nil {
-		panic("Error initializing database")
-	}
-	defer dbInstance.Disconnect(context.Background())
-
-	dbName := dbInstance.Database(os.Getenv("DB_NAME"))
-	model.CreateIndexes(context.Background(), dbName)
 	srv := config.NewServer(os.Getenv("PORT"))
 	pprof.Register(srv.Srv)
 	apiPrefix := srv.Srv.Group("/api/v1")
 
-	playerRepo := repository.NewMongoPlayerRepository(dbName)
+	dbInstance := db.InitPostgres()
+	if err := db.Migrate(context.Background(), dbInstance); err != nil {
+		log.Fatalf("Failed to apply migrations: %v", err)
+	}
+	playerRepo := repository.NewPostgresPlayerRepository(dbInstance)
+
+	scoreRepo := repository.NewPostgresScoreRepository(dbInstance)
+
 	redisURI := os.Getenv("REDIS_URI")
 	var leaderboardCache repository.LeaderboardCache
 	redisClient, err := db.InitRedis(redisURI)
@@ -47,9 +45,9 @@ func main() {
 	} else {
 		log.Println("Connected to Redis successfully")
 		leaderboardCache = repository.NewRedisLeaderboardCache(redisClient)
-		worker.RebuildLeaderboardsOnStartup(dbName, leaderboardCache)
+		worker.RebuildLeaderboardsOnStartup(scoreRepo, leaderboardCache)
 
-		leaderboardHub := realtime.NewLeaderboardHub(redisClient, dbName)
+		leaderboardHub := realtime.NewLeaderboardHub(redisClient)
 		leaderboardWSHandler := handler.NewLeaderboardWSHandler(leaderboardHub, apiPrefix)
 		leaderboardWSHandler.RegisterRoutes()
 	}
@@ -61,19 +59,23 @@ func main() {
 
 	playerQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient, leaderboardCache)
 	log.Println("Starting player worker pool...")
-	playerWorker := worker.NewPlayerWorker(playerQueue).SetMaxRetries(5)
+	playerWorker := worker.NewWorker(playerQueue).SetMaxRetries(5)
 	go playerWorker.Start(context.Background())
 
-	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient, leaderboardCache)
+	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), scoreRepo, redisClient, leaderboardCache)
 	log.Println("Starting score worker pool...")
-	scoreWorker := worker.NewPlayerWorker(scoreQueue).SetMaxRetries(5)
+	scoreWorker := worker.NewWorker(scoreQueue).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())
 
 	playerService := service.NewPlayerService(playerRepo, playerQueue)
 	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)
 	playerHandler.RegisterRoutes()
 
-	gameRepo := repository.NewMongoGameRepository(dbName)
+	scoreService := service.NewScoreService(scoreQueue)
+	scoreHandler := handler.NewScoreHandler(scoreService, apiPrefix)
+	scoreHandler.RegisterRoutes()
+
+	gameRepo := repository.NewPostgresGameRepository(dbInstance)
 	gameService := service.NewGameService(gameRepo)
 	gameHandler := handler.NewGameHandler(gameService, apiPrefix)
 	gameHandler.RegisterRoutes()

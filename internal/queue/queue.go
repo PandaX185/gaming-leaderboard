@@ -13,7 +13,7 @@ type IQueue interface {
 	GetEvents() chan Event
 }
 
-func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Client, leaderboardCache repository.LeaderboardCache) IQueue {
+func NewQueue(queueType string, repo any, rdb *redis.Client, leaderboardCache repository.LeaderboardCache) IQueue {
 	if queueType != "redis" {
 		log.Panicf("Unsupported queue type '%s': only 'redis' is allowed", queueType)
 	}
@@ -21,5 +21,13 @@ func NewQueue(queueType string, repo repository.PlayerRepository, rdb *redis.Cli
 		log.Panic("Redis queue selected but Redis client is nil")
 	}
 
-	return NewRedisPlayerQueue(rdb, repo, leaderboardCache)
+	switch r := repo.(type) {
+	case repository.PlayerRepository:
+		return NewRedisPlayerQueue(rdb, r, leaderboardCache)
+	case repository.ScoreRepository:
+		return NewScoreQueue(rdb, r, leaderboardCache)
+	default:
+		log.Panic("Unknown repository type for queue")
+		return nil
+	}
 }

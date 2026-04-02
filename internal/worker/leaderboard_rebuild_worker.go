@@ -5,11 +5,9 @@ import (
 	"gaming-leaderboard/internal/repository"
 	"log"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func RebuildLeaderboardsOnStartup(db *mongo.Database, cache repository.LeaderboardCache) {
+func RebuildLeaderboardsOnStartup(repo repository.ScoreRepository, cache repository.LeaderboardCache) {
 	if cache == nil {
 		return
 	}
@@ -18,7 +16,7 @@ func RebuildLeaderboardsOnStartup(db *mongo.Database, cache repository.Leaderboa
 	defer cancel()
 
 	start := time.Now()
-	if err := cache.RebuildFromMongo(ctx, db); err != nil {
+	if err := cache.RebuildFromDb(ctx, repo); err != nil {
 		log.Printf("Leaderboard rebuild failed: %v", err)
 		return
 	}

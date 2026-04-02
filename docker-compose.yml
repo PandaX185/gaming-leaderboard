@@ -1,48 +1,19 @@
 services:
-  mongo1:
-    image: mongo
-    container_name: mongo1
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
     restart: always
     ports:
-      - "27017:27017"
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=gaming_leaderboard
     volumes:
-      - mongo1_data:/data/db
-    command: [ "--replSet", "rs0", "--bind_ip_all" ]
-
-  mongo2:
-    image: mongo
-    container_name: mongo2
-    restart: always
-    ports:
-      - "27018:27017"
-    volumes:
-      - mongo2_data:/data/db
-    command: [ "--replSet", "rs0", "--bind_ip_all" ]
-
-  mongo3:
-    image: mongo
-    container_name: mongo3
-    restart: always
-    ports:
-      - "27019:27017"
-    volumes:
-      - mongo3_data:/data/db
-    command: [ "--replSet", "rs0", "--bind_ip_all" ]
-
-  mongo-setup:
-    image: mongo
-    container_name: mongo-setup
-    restart: "no"
-    depends_on:
-      - mongo1
-      - mongo2
-      - mongo3
-    command: >
-      bash -c "
-        echo 'Waiting for MongoDB instances to start...'
-        sleep 5
-        mongosh --host mongo1:27017 --eval 'rs.initiate({_id: \"rs0\", members: [{_id: 0, host: \"mongo1:27017\"}, {_id: 1, host: \"mongo2:27017\"}, {_id: 2, host: \"mongo3:27017\"}]})' || true
-      "
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U admin -d gaming_leaderboard || exit 1" ]
 
   app:
     build: .
@@ -50,9 +21,11 @@ services:
     restart: always
     ports:
       - "8080:8080"
+    environment:
+      - DB_URI=postgres://admin:admin@postgres:5432/gaming_leaderboard
     depends_on:
-      mongo-setup:
-        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_started
 
@@ -85,41 +58,6 @@ services:
     depends_on:
       - redis
 
-  mongodb-exporter:
-    image: percona/mongodb_exporter:0.47.1
-    container_name: mongodb-exporter
-    restart: always
-    ports:
-      - "9216:9216"
-    command:
-      - --mongodb.uri=mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0
-      - --no-mongodb.direct-connect
-      - --collector.diagnosticdata
-      - --collector.replicasetstatus
-      - --collector.replicasetconfig
-      - --collector.dbstats
-      - --collector.topmetrics
-      - --collector.currentopmetrics
-      - --collector.fcv
-      - --compatible-mode
-    depends_on:
-      mongo-setup:
-        condition: service_completed_successfully
-
-  mongo-express:
-    image: mongo-express
-    container_name: mongo-express
-    restart: always
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_URL: mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0
-      ME_CONFIG_BASICAUTH_USERNAME: admin
-      ME_CONFIG_BASICAUTH_PASSWORD: password
-    depends_on:
-      mongo-setup:
-        condition: service_completed_successfully
-
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -144,6 +82,4 @@ services:
       - prometheus
 
 volumes:
-  mongo1_data:
-  mongo2_data:
-  mongo3_data:
+  postgres-data:

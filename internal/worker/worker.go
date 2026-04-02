@@ -14,7 +14,7 @@ type Worker struct {
 	maxRetries int
 }
 
-func NewPlayerWorker(qu queue.IQueue) *Worker {
+func NewWorker(qu queue.IQueue) *Worker {
 	return &Worker{
 		qu: qu,
 	}

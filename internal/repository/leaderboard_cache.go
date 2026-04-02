@@ -3,12 +3,9 @@ package repository
 import (
 	"context"
 	"fmt"
-	"gaming-leaderboard/internal/consts"
+	"slices"
 
 	"github.com/redis/go-redis/v9"
-	
-	"go.mongodb.org/mongo-driver/v2/bson"
-	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
 const leaderboardKeyPattern = "leaderboard:game:%s"
@@ -24,7 +21,7 @@ func LeaderboardUpdatesStream(gameID string) string {
 
 type LeaderboardCache interface {
 	IncrementScore(context.Context, string, string, int) error
-	RebuildFromMongo(context.Context, *mongo.Database) error
+	RebuildFromDb(ctx context.Context, repo ScoreRepository) error
 }
 
 type redisLeaderboardCache struct {
@@ -44,30 +41,15 @@ func (c *redisLeaderboardCache) IncrementScore(ctx context.Context, gameID strin
 	return c.rdb.ZIncrBy(ctx, key, float64(delta), playerID).Err()
 }
 
-func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.Database) error {
+func (c *redisLeaderboardCache) RebuildFromDb(ctx context.Context, repo ScoreRepository) error {
 	if err := c.clearAllLeaderboards(ctx); err != nil {
 		return err
 	}
 
-	type scoreDoc struct {
-		PlayerID bson.ObjectID `bson:"player_id"`
-		GameID   bson.ObjectID `bson:"game_id"`
-		Score    int                `bson:"score"`
-	}
-
-	pipeline := mongo.Pipeline{
-		bson.D{{Key: "$project", Value: bson.D{
-			{Key: "player_id", Value: 1},
-			{Key: "game_id", Value: 1},
-			{Key: "score", Value: 1},
-		}}},
-	}
-
-	cursor, err := db.Collection(consts.PlayerGameCollection).Aggregate(ctx, pipeline)
+	scores, err := repo.GetAllLeaderboards(ctx)
 	if err != nil {
 		return err
 	}
-	defer cursor.Close(ctx)
 
 	pipe := c.rdb.Pipeline()
 	queued := 0
@@ -81,14 +63,9 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 		return execErr
 	}
 
-	for cursor.Next(ctx) {
-		var doc scoreDoc
-		if err := cursor.Decode(&doc); err != nil {
-			return err
-		}
-
-		key := LeaderboardKey(doc.GameID.Hex())
-		pipe.ZAdd(ctx, key, redis.Z{Score: float64(doc.Score), Member: doc.PlayerID.Hex()})
+	for _, score := range slices.Collect(scores) {
+		key := LeaderboardKey(score.GameID)
+		pipe.ZAdd(ctx, key, redis.Z{Score: float64(score.Score), Member: score.PlayerID})
 		queued++
 
 		if queued >= 500 {
@@ -96,10 +73,6 @@ func (c *redisLeaderboardCache) RebuildFromMongo(ctx context.Context, db *mongo.
 				return err
 			}
 		}
-	}
-
-	if err := cursor.Err(); err != nil {
-		return err
 	}
 
 	return flush()

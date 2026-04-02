@@ -16,8 +16,8 @@ type PlayerGame struct {
 	UpdatedAt time.Time     `bson:"updated_at,omitempty"`
 }
 
-func (p PlayerGame) ToResponse() *dto.GameScoreResponse {
-	return &dto.GameScoreResponse{
+func (p PlayerGame) ToResponse() *dto.ScoreResponse {
+	return &dto.ScoreResponse{
 		PlayerID:  p.PlayerID.Hex(),
 		Score:     p.Score,
 		CreatedAt: p.CreatedAt,

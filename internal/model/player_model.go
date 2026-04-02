@@ -3,15 +3,13 @@ package model
 import (
 	"gaming-leaderboard/internal/dto"
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type Player struct {
-	ID        bson.ObjectID `bson:"_id,omitempty"`
-	Username  string        `bson:"username,unique"`
-	CreatedAt time.Time     `bson:"created_at"`
-	UpdatedAt time.Time     `bson:"updated_at,omitempty"`
+	ID        string    `bson:"_id,omitempty"`
+	Username  string    `bson:"username,unique"`
+	CreatedAt time.Time `bson:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at,omitempty"`
 }
 
 func (u Player) FromDTO(data *dto.CreatePlayerRequest) Player {
@@ -25,7 +23,7 @@ func (u Player) FromDTO(data *dto.CreatePlayerRequest) Player {
 
 func (u Player) ToResponse() *dto.PlayerResponse {
 	return &dto.PlayerResponse{
-		ID:        u.ID.Hex(),
+		ID:        u.ID,
 		Username:  u.Username,
 		CreatedAt: u.CreatedAt,
 		UpdatedAt: u.UpdatedAt,
