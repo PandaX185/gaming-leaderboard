@@ -26,8 +26,8 @@ func LeaderboardUpdatesStream(gameID string) string {
 type LeaderboardCache interface {
 	IncrementScore(context.Context, string, string, int) error
 	RebuildFromDb(context.Context, ScoreRepository, GameRepository, PlayerRepository) error
-	GetTotalPlayersCount(ctx context.Context) (int64, error)
-	GetTotalGamesCount(ctx context.Context) (int64, error)
+	GetTotalPlayersCount(ctx context.Context) (int, error)
+	GetTotalGamesCount(ctx context.Context) (int, error)
 	IncrementPlayerCount(ctx context.Context) error
 	IncrementGameCount(ctx context.Context) error
 }
@@ -40,12 +40,20 @@ func NewRedisLeaderboardCache(rdb *redis.Client) LeaderboardCache {
 	return &redisLeaderboardCache{rdb: rdb}
 }
 
-func (c *redisLeaderboardCache) GetTotalPlayersCount(ctx context.Context) (int64, error) {
-	return c.rdb.Get(ctx, playerCountKey).Int64()
+func (c *redisLeaderboardCache) GetTotalPlayersCount(ctx context.Context) (int, error) {
+	count, err := c.rdb.Get(ctx, playerCountKey).Int64()
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
 }
 
-func (c *redisLeaderboardCache) GetTotalGamesCount(ctx context.Context) (int64, error) {
-	return c.rdb.Get(ctx, gameCountKey).Int64()
+func (c *redisLeaderboardCache) GetTotalGamesCount(ctx context.Context) (int, error) {
+	count, err := c.rdb.Get(ctx, gameCountKey).Int64()
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
 }
 
 func (c *redisLeaderboardCache) IncrementPlayerCount(ctx context.Context) error {

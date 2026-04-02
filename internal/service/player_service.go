@@ -9,23 +9,35 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type PlayerService struct {
 	repo    repository.PlayerRepository
+	cache   repository.LeaderboardCache
 	playerQ queue.IQueue
 }
 
-func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IQueue) *PlayerService {
+func NewPlayerService(repo repository.PlayerRepository, playerQ queue.IQueue, cache repository.LeaderboardCache) *PlayerService {
 	return &PlayerService{
 		repo:    repo,
 		playerQ: playerQ,
+		cache:   cache,
 	}
+}
+
+func hashPassword(password string) string {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return ""
+	}
+	return string(hashed)
 }
 
 func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayerRequest) (*dto.PlayerResponse, error) {
 	data.CreatedAt = time.Now()
 	data.UpdatedAt = time.Now()
+	data.Password = hashPassword(data.Password)
 
 	generatedID, err := uuid.NewV7()
 	if err != nil {
@@ -37,7 +49,10 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 		Type:    consts.PlayerCreatedEvent,
 		Payload: data,
 		Handler: func(workerCtx context.Context, p any) error {
-			return s.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest))
+			if err := s.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest)); err != nil {
+				return err
+			}
+			return s.cache.IncrementPlayerCount(workerCtx)
 		},
 		Attempt: 0,
 	})
@@ -55,5 +70,15 @@ func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.Play
 }
 
 func (s *PlayerService) GetAllPlayers(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
-	return s.repo.GetAll(ctx, params)
+	res, err := s.repo.GetAll(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	res.TotalItems, err = s.cache.GetTotalPlayersCount(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }

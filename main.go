@@ -66,7 +66,7 @@ func main() {
 	scoreWorker := worker.NewWorker(scoreQueue).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())
 
-	playerService := service.NewPlayerService(playerRepo, playerQueue)
+	playerService := service.NewPlayerService(playerRepo, playerQueue, leaderboardCache)
 	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)
 	playerHandler.RegisterRoutes()
 
@@ -74,7 +74,7 @@ func main() {
 	scoreHandler := handler.NewScoreHandler(scoreService, apiPrefix)
 	scoreHandler.RegisterRoutes()
 
-	gameService := service.NewGameService(gameRepo)
+	gameService := service.NewGameService(gameRepo, leaderboardCache)
 	gameHandler := handler.NewGameHandler(gameService, apiPrefix)
 	gameHandler.RegisterRoutes()
 

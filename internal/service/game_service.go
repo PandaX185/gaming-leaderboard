@@ -7,17 +7,28 @@ import (
 )
 
 type GameService struct {
-	repo repository.GameRepository
+	repo  repository.GameRepository
+	cache repository.LeaderboardCache
 }
 
-func NewGameService(repo repository.GameRepository) *GameService {
+func NewGameService(repo repository.GameRepository, cache repository.LeaderboardCache) *GameService {
 	return &GameService{
-		repo: repo,
+		repo:  repo,
+		cache: cache,
 	}
 }
 
 func (s *GameService) CreateGame(ctx context.Context, data *dto.CreateGameRequest) (*dto.GameResponse, error) {
-	return s.repo.Insert(ctx, data)
+	res, err := s.repo.Insert(ctx, data)
+	if err != nil {
+		return nil, err
+	}
+
+	if err = s.cache.IncrementGameCount(ctx); err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (s *GameService) GetGameByID(ctx context.Context, id int) (*dto.GameResponse, error) {
@@ -25,7 +36,17 @@ func (s *GameService) GetGameByID(ctx context.Context, id int) (*dto.GameRespons
 }
 
 func (s *GameService) GetAllGames(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
-	return s.repo.GetAll(ctx, params)
+	res, err := s.repo.GetAll(ctx, params)
+	if err != nil {
+		return nil, err
+	}
+
+	res.TotalItems, err = s.cache.GetTotalGamesCount(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
 }
 
 func (s *GameService) GetGameScores(ctx context.Context, id int, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
