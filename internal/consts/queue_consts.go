@@ -1,6 +1,8 @@
 package consts
 
+import "time"
+
 const (
 	ConsumerGroup = "LeaderboardGroup"
-	ReclaimTime   = 60_000
+	ReclaimTime   = time.Minute
 )

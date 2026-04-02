@@ -135,8 +135,20 @@ func (q *RedisQueue) autoClaim(events chan Event) {
 
 func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Event, source string) {
 	for _, message := range messages {
+		payloadRaw, ok := message.Values["Payload"]
+		if !ok || payloadRaw == nil {
+			log.Error("Missing Payload in message: %v", message.ID)
+			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
+			continue
+		}
+		payloadStr, ok := payloadRaw.(string)
+		if !ok {
+			log.Error("Payload is not a string in message: %v", message.ID)
+			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
+			continue
+		}
 		var event Event
-		if err := json.Unmarshal([]byte(message.Values["Payload"].(string)), &event); err != nil {
+		if err := json.Unmarshal([]byte(payloadStr), &event); err != nil {
 			log.Error("Failed to unmarshal event: %v", err)
 			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
 			continue
