@@ -10,7 +10,7 @@ import (
 )
 
 type ScoreRepository interface {
-	UpdateScore(context.Context, int, string, int) error
+	UpdateScore(context.Context, string, string, int) error
 	GetAllLeaderboards(ctx context.Context) (iter.Seq[dto.ScoreResponse], error)
 }
 
@@ -22,23 +22,20 @@ func NewPostgresScoreRepository(db *pgxpool.Pool) ScoreRepository {
 	return &postgresScoreRepository{db: db}
 }
 
-func (r *postgresScoreRepository) UpdateScore(ctx context.Context, gameID int, playerID string, delta int) error {
-	log.Info("ScoreRepository UpdateScore called gameID=%d playerID=%s delta=%d", gameID, playerID, delta)
+func (r *postgresScoreRepository) UpdateScore(ctx context.Context, gameID string, playerID string, delta int) error {
 	_, err := r.db.Exec(ctx, `
 		insert into scores (player_id, game_id, score)
 		values ($1, $2, $3)
 		on conflict (player_id, game_id) do update set score = scores.score + $3
 	`, playerID, gameID, delta)
 	if err != nil {
-		log.Error("ScoreRepository UpdateScore failed gameID=%d playerID=%s err=%v", gameID, playerID, err)
+		log.Error("ScoreRepository UpdateScore failed gameID=%s playerID=%s err=%v", gameID, playerID, err)
 		return err
 	}
-	log.Info("ScoreRepository UpdateScore success gameID=%d playerID=%s", gameID, playerID)
 	return nil
 }
 
 func (r *postgresScoreRepository) GetAllLeaderboards(ctx context.Context) (iter.Seq[dto.ScoreResponse], error) {
-	log.Info("ScoreRepository GetAllLeaderboards called")
 	rows, err := r.db.Query(ctx, "select player_id, game_id, score from scores")
 	if err != nil {
 		log.Error("ScoreRepository GetAllLeaderboards query failed: %v", err)

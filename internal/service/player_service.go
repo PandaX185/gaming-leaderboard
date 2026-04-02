@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/repository"
-	"gaming-leaderboard/internal/uuidgen"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type PlayerService struct {
@@ -25,13 +27,20 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 	data.CreatedAt = time.Now()
 	data.UpdatedAt = time.Now()
 
-	generatedID, err := uuidgen.NewUUIDv7()
+	generatedID, err := uuid.NewV7()
 	if err != nil {
 		return nil, err
 	}
-	data.ID = generatedID
+	data.ID = generatedID.String()
 
-	s.playerQ.PublishEvent(ctx, data)
+	s.playerQ.PublishEvent(ctx, queue.Event{
+		Type:    consts.PlayerCreatedEvent,
+		Payload: data,
+		Handler: func(workerCtx context.Context, p any) error {
+			return s.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest))
+		},
+		Attempt: 0,
+	})
 
 	return &dto.PlayerResponse{
 		ID:        data.ID,

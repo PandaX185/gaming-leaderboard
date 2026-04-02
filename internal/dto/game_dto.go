@@ -11,7 +11,7 @@ type UpdateGameRequest struct {
 }
 
 type GameResponse struct {
-	ID        int       `json:"id"`
+	ID        string       `json:"id"`
 	Name      string    `json:"name" example:"Space Invaders"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

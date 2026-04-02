@@ -3,7 +3,7 @@ package dto
 import "time"
 
 type ScoreResponse struct {
-	GameID    int       `json:"game_id"`
+	GameID    string    `json:"game_id"`
 	PlayerID  string    `json:"player_id"`
 	Score     int       `json:"score" example:"100"`
 	CreatedAt time.Time `json:"created_at"`

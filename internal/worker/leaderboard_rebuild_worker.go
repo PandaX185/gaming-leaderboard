@@ -7,16 +7,12 @@ import (
 	"time"
 )
 
-func RebuildLeaderboardsOnStartup(repo repository.ScoreRepository, cache repository.LeaderboardCache) {
-	if cache == nil {
-		return
-	}
-
+func RebuildLeaderboardsOnStartup(scoreRepo repository.ScoreRepository, playerRepo repository.PlayerRepository, gameRepo repository.GameRepository, cache repository.LeaderboardCache) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	start := time.Now()
-	if err := cache.RebuildFromDb(ctx, repo); err != nil {
+	if err := cache.RebuildFromDb(ctx, scoreRepo, gameRepo, playerRepo); err != nil {
 		log.Error("Leaderboard rebuild failed: %v", err)
 		return
 	}

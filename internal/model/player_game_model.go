@@ -7,7 +7,7 @@ import (
 
 type PlayerGame struct {
 	PlayerID  string    `db:"player_id" json:"player_id"`
-	GameID    int       `db:"game_id" json:"game_id"`
+	GameID    string    `db:"game_id" json:"game_id"`
 	Score     int       `db:"score" json:"score"`
 	CreatedAt time.Time `db:"created_at" json:"created_at"`
 	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`

@@ -180,7 +180,7 @@ func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr strin
 			if ctx.Err() != nil {
 				return
 			}
-			log.Error("failed reading leaderboard updates stream for game %s: %v", gameID, err)
+			log.Error("failed reading leaderboard updates stream for game %d: %v", gameID, err)
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}

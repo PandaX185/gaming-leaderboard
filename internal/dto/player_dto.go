@@ -14,13 +14,13 @@ type CreatePlayerRequest struct {
 
 type UpdateScoreRequest struct {
 	PlayerID string `json:"player_id" validate:"required"`
-	GameID   int    `json:"game_id" validate:"required"`
+	GameID   string `json:"game_id" validate:"required"`
 	Score    int    `json:"score" validate:"required,gt=0" example:"1500"`
 }
 
 type UpdateScoreEvent struct {
 	PlayerID string `json:"player_id"`
-	GameID   int    `json:"game_id"`
+	GameID   string `json:"game_id"`
 	Score    int    `json:"score"`
 }
 

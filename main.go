@@ -4,6 +4,7 @@ import (
 	"context"
 	"gaming-leaderboard/internal/db"
 	"gaming-leaderboard/internal/handler"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/realtime"
 	"gaming-leaderboard/internal/repository"
@@ -11,8 +12,8 @@ import (
 	"gaming-leaderboard/internal/service"
 	"gaming-leaderboard/internal/worker"
 	"gaming-leaderboard/metrics"
-	"log"
 	"os"
+	"time"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/joho/godotenv"
@@ -30,40 +31,38 @@ func main() {
 	apiPrefix := srv.Srv.Group("/api/v1")
 
 	dbInstance := db.InitPostgres()
-	if err := db.Migrate(context.Background(), dbInstance); err != nil {
-		log.Fatalf("Failed to apply migrations: %v", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := db.Migrate(ctx, dbInstance); err != nil {
+		log.Error("Failed to apply migrations: %v", err)
 	}
-	playerRepo := repository.NewPostgresPlayerRepository(dbInstance)
-
-	scoreRepo := repository.NewPostgresScoreRepository(dbInstance)
 
 	redisURI := os.Getenv("REDIS_URI")
-	var leaderboardCache repository.LeaderboardCache
-	redisClient, err := db.InitRedis(redisURI)
-	if err != nil {
-		log.Printf("Error connecting to Redis: %v. Continuing without leaderboard cache.\n", err)
-	} else {
-		log.Println("Connected to Redis successfully")
-		leaderboardCache = repository.NewRedisLeaderboardCache(redisClient)
-		worker.RebuildLeaderboardsOnStartup(scoreRepo, leaderboardCache)
+	redisClient := db.InitRedis(redisURI)
+	log.Info("Connected to Redis successfully")
 
-		leaderboardHub := realtime.NewLeaderboardHub(redisClient)
-		leaderboardWSHandler := handler.NewLeaderboardWSHandler(leaderboardHub, apiPrefix)
-		leaderboardWSHandler.RegisterRoutes()
-	}
+	playerRepo := repository.NewPostgresPlayerRepository(dbInstance)
+	gameRepo := repository.NewPostgresGameRepository(dbInstance)
+	scoreRepo := repository.NewPostgresScoreRepository(dbInstance)
+
+	leaderboardCache := repository.NewRedisLeaderboardCache(redisClient)
+	worker.RebuildLeaderboardsOnStartup(scoreRepo, playerRepo, gameRepo, leaderboardCache)
+
+	leaderboardHub := realtime.NewLeaderboardHub(redisClient)
+	leaderboardWSHandler := handler.NewLeaderboardWSHandler(leaderboardHub, apiPrefix)
+	leaderboardWSHandler.RegisterRoutes()
+
 	defer func() {
-		if redisClient != nil {
-			redisClient.Close()
-		}
+		dbInstance.Close()
+		redisClient.Close()
+		log.Info("Database connections closed")
 	}()
 
-	playerQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), playerRepo, redisClient, leaderboardCache)
-	log.Println("Starting player worker pool...")
+	playerQueue := queue.NewRedisQueue(playerRepo, redisClient)
 	playerWorker := worker.NewWorker(playerQueue).SetMaxRetries(5)
 	go playerWorker.Start(context.Background())
 
-	scoreQueue := queue.NewQueue(os.Getenv("QUEUE_TYPE"), scoreRepo, redisClient, leaderboardCache)
-	log.Println("Starting score worker pool...")
+	scoreQueue := queue.NewRedisQueue(scoreRepo, redisClient)
 	scoreWorker := worker.NewWorker(scoreQueue).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())
 
@@ -71,11 +70,10 @@ func main() {
 	playerHandler := handler.NewPlayerHandler(playerService, apiPrefix)
 	playerHandler.RegisterRoutes()
 
-	scoreService := service.NewScoreService(scoreQueue)
+	scoreService := service.NewScoreService(scoreRepo, scoreQueue)
 	scoreHandler := handler.NewScoreHandler(scoreService, apiPrefix)
 	scoreHandler.RegisterRoutes()
 
-	gameRepo := repository.NewPostgresGameRepository(dbInstance)
 	gameService := service.NewGameService(gameRepo)
 	gameHandler := handler.NewGameHandler(gameService, apiPrefix)
 	gameHandler.RegisterRoutes()
