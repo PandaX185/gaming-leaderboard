@@ -19,6 +19,15 @@ type RedisQueue struct {
 }
 
 func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	if err := rdb.
+		XGroupCreateMkStream(ctx, consts.ScoreEvents, consts.ConsumerGroup, "0-0").
+		Err(); err != nil && err != redis.Nil {
+		log.Error("Failed to create Redis consumer group: %v", err)
+	}
+
 	hostname, _ := os.Hostname()
 	consumerID := hostname + "-" + uuid.NewString()
 
