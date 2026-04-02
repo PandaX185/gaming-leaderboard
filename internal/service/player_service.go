@@ -5,6 +5,7 @@ import (
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/repository"
+	"gaming-leaderboard/internal/uuidgen"
 	"time"
 )
 
@@ -24,24 +25,23 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 	data.CreatedAt = time.Now()
 	data.UpdatedAt = time.Now()
 
-	id, err := s.repo.Insert(ctx, data)
+	generatedID, err := uuidgen.NewUUIDv7()
 	if err != nil {
 		return nil, err
 	}
+	data.ID = generatedID
 
-	response := &dto.PlayerResponse{
-		ID:        id,
+	s.playerQ.PublishEvent(ctx, data)
+
+	return &dto.PlayerResponse{
+		ID:        data.ID,
 		Username:  data.Username,
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,
-	}
-
-	_ = s.playerQ.PublishEvent(ctx, data)
-
-	return response, nil
+	}, nil
 }
 
-func (s *PlayerService) GetPlayerByID(ctx context.Context, id int) (*dto.PlayerResponse, error) {
+func (s *PlayerService) GetPlayerByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {
 	return s.repo.GetByID(ctx, id)
 }
 

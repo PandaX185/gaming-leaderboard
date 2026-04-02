@@ -8,15 +8,16 @@ import (
 
 func Migrate00001(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, `
+	CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 	CREATE TABLE IF NOT EXISTS players (
-	    id SERIAL PRIMARY KEY,
+	    id UUID PRIMARY KEY,
 	    username VARCHAR(255) NOT NULL,
 		password TEXT NOT NULL,
 	    created_at TIMESTAMP DEFAULT now(),
 	    updated_at TIMESTAMP DEFAULT now(),
 
 	    CONSTRAINT unique_username UNIQUE (username)
-		);
+	);
 	`)
 	if err != nil {
 		return err

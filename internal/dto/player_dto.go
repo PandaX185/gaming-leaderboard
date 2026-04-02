@@ -5,6 +5,7 @@ import (
 )
 
 type CreatePlayerRequest struct {
+	ID        string    `json:"id,omitempty"`
 	Username  string    `json:"username" validate:"required,min=3" example:"player1"`
 	Password  string    `json:"password" validate:"required,min=6" example:"secret123"`
 	CreatedAt time.Time `json:"created_at"`
@@ -12,19 +13,19 @@ type CreatePlayerRequest struct {
 }
 
 type UpdateScoreRequest struct {
-	PlayerID int `json:"player_id" validate:"required"`
-	GameID   int `json:"game_id" validate:"required"`
-	Score    int `json:"score" validate:"required,gt=0" example:"1500"`
+	PlayerID string `json:"player_id" validate:"required"`
+	GameID   int    `json:"game_id" validate:"required"`
+	Score    int    `json:"score" validate:"required,gt=0" example:"1500"`
 }
 
 type UpdateScoreEvent struct {
-	PlayerID int `json:"player_id"`
-	GameID   int `json:"game_id"`
-	Score    int `json:"score"`
+	PlayerID string `json:"player_id"`
+	GameID   int    `json:"game_id"`
+	Score    int    `json:"score"`
 }
 
 type PlayerResponse struct {
-	ID        int       `json:"id"`
+	ID        string    `json:"id"`
 	Username  string    `json:"username" example:"player1"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

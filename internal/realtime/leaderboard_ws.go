@@ -17,14 +17,14 @@ import (
 
 type ScoreUpdate struct {
 	Type     string  `json:"type"`
-	PlayerID int     `json:"player_id"`
+	PlayerID string  `json:"player_id"`
 	Score    float64 `json:"score"`
 	Rank     int64   `json:"rank"`
 }
 
 type LeaderboardEntry struct {
 	Rank     int64   `json:"rank"`
-	PlayerID int     `json:"player_id"`
+	PlayerID string  `json:"player_id"`
 	Score    float64 `json:"score"`
 }
 
@@ -226,14 +226,10 @@ func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID in
 		if !ok {
 			continue
 		}
-		playerID, err := strconv.Atoi(playerIDStr)
-		if err != nil {
-			continue
-		}
 
 		entries = append(entries, LeaderboardEntry{
 			Rank:     int64(i + 1),
-			PlayerID: playerID,
+			PlayerID: playerIDStr,
 			Score:    row.Score,
 		})
 	}
@@ -267,10 +263,6 @@ func toScoreUpdate(values map[string]any) (ScoreUpdate, bool) {
 	if !ok {
 		return ScoreUpdate{}, false
 	}
-	playerID, err := strconv.Atoi(playerIDStr)
-	if err != nil {
-		return ScoreUpdate{}, false
-	}
 
 	score, ok := asFloat64(values["score"])
 	if !ok {
@@ -291,7 +283,7 @@ func toScoreUpdate(values map[string]any) (ScoreUpdate, bool) {
 
 	return ScoreUpdate{
 		Type:     updateType,
-		PlayerID: playerID,
+		PlayerID: playerIDStr,
 		Score:    score,
 		Rank:     rank,
 	}, true

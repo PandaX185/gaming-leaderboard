@@ -20,7 +20,7 @@ func LeaderboardUpdatesStream(gameID string) string {
 }
 
 type LeaderboardCache interface {
-	IncrementScore(context.Context, int, int, int) error
+	IncrementScore(context.Context, int, string, int) error
 	RebuildFromDb(ctx context.Context, repo ScoreRepository) error
 }
 
@@ -32,13 +32,13 @@ func NewRedisLeaderboardCache(rdb *redis.Client) LeaderboardCache {
 	return &redisLeaderboardCache{rdb: rdb}
 }
 
-func (c *redisLeaderboardCache) IncrementScore(ctx context.Context, gameID int, playerID int, delta int) error {
+func (c *redisLeaderboardCache) IncrementScore(ctx context.Context, gameID int, playerID string, delta int) error {
 	if delta == 0 {
 		return nil
 	}
 
 	key := LeaderboardKey(fmt.Sprintf("%d", gameID))
-	return c.rdb.ZIncrBy(ctx, key, float64(delta), fmt.Sprintf("%d", playerID)).Err()
+	return c.rdb.ZIncrBy(ctx, key, float64(delta), playerID).Err()
 }
 
 func (c *redisLeaderboardCache) RebuildFromDb(ctx context.Context, repo ScoreRepository) error {
@@ -65,7 +65,7 @@ func (c *redisLeaderboardCache) RebuildFromDb(ctx context.Context, repo ScoreRep
 
 	for _, score := range slices.Collect(scores) {
 		key := LeaderboardKey(fmt.Sprintf("%d", score.GameID))
-		pipe.ZAdd(ctx, key, redis.Z{Score: float64(score.Score), Member: fmt.Sprintf("%d", score.PlayerID)})
+		pipe.ZAdd(ctx, key, redis.Z{Score: float64(score.Score), Member: fmt.Sprintf("%s", score.PlayerID)})
 		queued++
 
 		if queued >= 500 {

@@ -4,7 +4,6 @@ import (
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/errors"
 	"gaming-leaderboard/internal/service"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -51,10 +50,9 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 }
 
 func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+	id := c.Param("id")
+	if id == "" {
+		HandleError(c, errors.NewBadRequest("Invalid ID", nil), "")
 		c.Abort()
 		return
 	}
