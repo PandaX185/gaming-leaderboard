@@ -1,6 +1,7 @@
 package server
 
 import (
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/metrics"
 	"strconv"
 	"time"
@@ -36,9 +37,12 @@ func PrometheusMiddleware() gin.HandlerFunc {
 }
 
 func NewServer(port string) *Server {
-	r := gin.Default()
+	log.Info("NewServer initializing on port %s", port)
+	r := gin.New()
+	r.Use(gin.Recovery())
 	r.Use(cors.Default())
 	r.Use(PrometheusMiddleware())
+	r.Use(ErrorHandlerMiddleware())
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return &Server{
@@ -48,6 +52,7 @@ func NewServer(port string) *Server {
 }
 
 func NewServerWithOpts(port string, opts []gin.OptionFunc) *Server {
+	log.Info("NewServerWithOpts initializing on port %s", port)
 	return &Server{
 		Port: port,
 		Srv:  gin.New(opts...),
@@ -55,5 +60,6 @@ func NewServerWithOpts(port string, opts []gin.OptionFunc) *Server {
 }
 
 func (s *Server) Run() {
+	log.Info("Server running on port %s", s.Port)
 	s.Srv.Run(s.Port)
 }

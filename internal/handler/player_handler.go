@@ -2,6 +2,7 @@ package handler
 
 import (
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/errors"
 	"gaming-leaderboard/internal/service"
 	"strconv"
 
@@ -29,17 +30,20 @@ func (h *PlayerHandler) RegisterRoutes() {
 func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 	data := &dto.CreatePlayerRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		HandleError(c, errors.NewBadRequest("Invalid request", err), "")
+		c.Abort()
 		return
 	}
 	if err := dto.ValidateStructRequest(data); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.CreatePlayer(c.Request.Context(), data)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create player " + err.Error()})
+		HandleError(c, err, "failed to create player")
+		c.Abort()
 		return
 	}
 
@@ -50,12 +54,14 @@ func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
+		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+		c.Abort()
 		return
 	}
 	resp, err := h.svc.GetPlayerByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Player not found " + err.Error()})
+		HandleError(c, err, "player not found")
+		c.Abort()
 		return
 	}
 
@@ -65,18 +71,21 @@ func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
 func (h *PlayerHandler) GetAllPlayers(c *gin.Context) {
 	params := &dto.PaginationParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid query parameters"})
+		HandleError(c, errors.NewBadRequest("Invalid query parameters", err), "")
+		c.Abort()
 		return
 	}
 
 	if err := dto.ValidateStructRequest(params); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.GetAllPlayers(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve players " + err.Error()})
+		HandleError(c, err, "failed to retrieve players")
+		c.Abort()
 		return
 	}
 

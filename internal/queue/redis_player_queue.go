@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -33,7 +33,7 @@ type RedisPlayerQueue struct {
 func NewRedisPlayerQueue(rdb *redis.Client, repo repository.PlayerRepository, leaderboardCache repository.LeaderboardCache) IQueue {
 	err := rdb.XGroupCreateMkStream(context.Background(), consts.ScoreEvents, ConsumerGroup, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "exists") {
-		log.Printf("Error creating consumer group: %v", err)
+		log.Error("Error creating consumer group: %v", err)
 	}
 
 	hostname, _ := os.Hostname()
@@ -109,7 +109,7 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 				if err == redis.Nil {
 					return
 				} else if err != nil {
-					log.Printf("Error reading from Redis Group: %v", err)
+					log.Error("Error reading from Redis Group: %v", err)
 					metrics.QueueReadErrorsTotal.WithLabelValues("xreadgroup").Inc()
 					time.Sleep(time.Second)
 					return
@@ -138,11 +138,11 @@ func (q *RedisPlayerQueue) GetEvents() chan Event {
 				}).Result()
 
 				if err != nil && err != redis.Nil {
-					log.Printf("Error during XAutoClaim: %v", err)
+					log.Error("Error during XAutoClaim: %v", err)
 					metrics.QueueReadErrorsTotal.WithLabelValues("xautoclaim").Inc()
 					time.Sleep(time.Second)
 				} else if len(messages) > 0 {
-					log.Printf("Reclaimed %d pending messages", len(messages))
+					log.Info("Reclaimed %d pending messages", len(messages))
 					q.processMessages(messages, events, "autoclaim")
 				}
 
@@ -205,7 +205,7 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 				if err == nil {
 					ackErr := q.rdb.XAck(workerCtx, consts.ScoreEvents, ConsumerGroup, msgID).Err()
 					if ackErr != nil {
-						log.Printf("Failed to XACK message %s: %v", msgID, ackErr)
+						log.Error("Failed to XACK message %s: %v", msgID, ackErr)
 						metrics.QueueAckTotal.WithLabelValues(eventType, "error").Inc()
 					} else {
 						metrics.QueueAckTotal.WithLabelValues(eventType, "success").Inc()
@@ -238,7 +238,7 @@ func (q *RedisPlayerQueue) emitScoreDeltaUpdate(ctx context.Context, scoreEvent 
 	score, scoreErr := q.rdb.ZScore(ctx, leaderboardKey, fmt.Sprintf("%d", scoreEvent.PlayerID)).Result()
 	rank, rankErr := q.rdb.ZRevRank(ctx, leaderboardKey, fmt.Sprintf("%d", scoreEvent.PlayerID)).Result()
 	if scoreErr != nil || rankErr != nil {
-		log.Printf("Failed to resolve score/rank for game %d player %d: scoreErr=%v rankErr=%v", scoreEvent.GameID, scoreEvent.PlayerID, scoreErr, rankErr)
+		log.Error("Failed to resolve score/rank for game %d player %d: scoreErr=%v rankErr=%v", scoreEvent.GameID, scoreEvent.PlayerID, scoreErr, rankErr)
 		return
 	}
 
@@ -254,6 +254,6 @@ func (q *RedisPlayerQueue) emitScoreDeltaUpdate(ctx context.Context, scoreEvent 
 			"rank":      rank + 1,
 		},
 	}).Err(); addErr != nil {
-		log.Printf("Failed to append leaderboard stream update for game %s: %v", scoreEvent.GameID, addErr)
+		log.Error("Failed to append leaderboard stream update for game %s: %v", scoreEvent.GameID, addErr)
 	}
 }

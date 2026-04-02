@@ -2,6 +2,7 @@ package handler
 
 import (
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/errors"
 	"gaming-leaderboard/internal/service"
 	"strconv"
 
@@ -32,17 +33,20 @@ func (h *GameHandler) RegisterRoutes() {
 func (h *GameHandler) CreateGame(c *gin.Context) {
 	data := &dto.CreateGameRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		HandleError(c, errors.NewBadRequest("Invalid request", err), "")
+		c.Abort()
 		return
 	}
 	if err := dto.ValidateStructRequest(data); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.CreateGame(c.Request.Context(), data)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to create game " + err.Error()})
+		HandleError(c, err, "failed to create game")
+		c.Abort()
 		return
 	}
 
@@ -53,12 +57,14 @@ func (h *GameHandler) GetGameByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
+		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+		c.Abort()
 		return
 	}
 	resp, err := h.svc.GetGameByID(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(404, gin.H{"error": "Game not found " + err.Error()})
+		HandleError(c, err, "game not found")
+		c.Abort()
 		return
 	}
 
@@ -69,23 +75,27 @@ func (h *GameHandler) GetGameScores(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
+		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+		c.Abort()
 		return
 	}
 	params := &dto.PaginationParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid query parameters"})
+		HandleError(c, errors.NewBadRequest("Invalid query parameters", err), "")
+		c.Abort()
 		return
 	}
 
 	if err := dto.ValidateStructRequest(params); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.GetGameScores(c.Request.Context(), id, params)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve game scores " + err.Error()})
+		HandleError(c, err, "failed to retrieve game scores")
+		c.Abort()
 		return
 	}
 
@@ -95,18 +105,21 @@ func (h *GameHandler) GetGameScores(c *gin.Context) {
 func (h *GameHandler) GetAllGames(c *gin.Context) {
 	params := &dto.PaginationParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid query parameters"})
+		HandleError(c, errors.NewBadRequest("Invalid query parameters", err), "")
+		c.Abort()
 		return
 	}
 
 	if err := dto.ValidateStructRequest(params); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.GetAllGames(c.Request.Context(), params)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to retrieve games " + err.Error()})
+		HandleError(c, err, "failed to retrieve games")
+		c.Abort()
 		return
 	}
 
@@ -117,22 +130,26 @@ func (h *GameHandler) UpdateGame(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
+		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+		c.Abort()
 		return
 	}
 	data := &dto.UpdateGameRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		HandleError(c, errors.NewBadRequest("Invalid request", err), "")
+		c.Abort()
 		return
 	}
 	if err := dto.ValidateStructRequest(data); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.UpdateGame(c.Request.Context(), id, data)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to update game " + err.Error()})
+		HandleError(c, err, "failed to update game")
+		c.Abort()
 		return
 	}
 
@@ -143,14 +160,16 @@ func (h *GameHandler) DeleteGame(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		c.JSON(400, gin.H{"error": "Invalid ID"})
+		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
+		c.Abort()
 		return
 	}
 	err = h.svc.DeleteGame(c.Request.Context(), id)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to delete game " + err.Error()})
+		HandleError(c, err, "failed to delete game")
+		c.Abort()
 		return
 	}
 
-	c.JSON(204, nil)
+	c.Status(204)
 }

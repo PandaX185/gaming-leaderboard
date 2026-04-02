@@ -2,8 +2,8 @@ package worker
 
 import (
 	"context"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
-	"log"
 	"time"
 )
 
@@ -17,9 +17,9 @@ func RebuildLeaderboardsOnStartup(repo repository.ScoreRepository, cache reposit
 
 	start := time.Now()
 	if err := cache.RebuildFromDb(ctx, repo); err != nil {
-		log.Printf("Leaderboard rebuild failed: %v", err)
+		log.Error("Leaderboard rebuild failed: %v", err)
 		return
 	}
 
-	log.Printf("Leaderboard rebuild completed in %s", time.Since(start).String())
+	log.Info("Leaderboard rebuild completed in %s", time.Since(start).String())
 }

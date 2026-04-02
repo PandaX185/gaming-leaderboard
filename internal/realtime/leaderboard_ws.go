@@ -3,8 +3,8 @@ package realtime
 import (
 	"context"
 	"fmt"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
-	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -157,7 +157,7 @@ func (h *LeaderboardHub) removeClient(gameID string, client *wsClient) {
 func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr string, stream string) {
 	gameID, err := strconv.Atoi(gameIDStr)
 	if err != nil {
-		log.Printf("Invalid game ID in consumeGameUpdates: %s", gameIDStr)
+		log.Warn("Invalid game ID in consumeGameUpdates: %s", gameIDStr)
 		return
 	}
 	lastID := "$"
@@ -180,7 +180,7 @@ func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr strin
 			if ctx.Err() != nil {
 				return
 			}
-			log.Printf("failed reading leaderboard updates stream for game %s: %v", gameID, err)
+			log.Error("failed reading leaderboard updates stream for game %s: %v", gameID, err)
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}
@@ -202,7 +202,7 @@ func (h *LeaderboardHub) broadcastDeltaToGame(gameID string, values map[string]a
 
 	update, ok := toScoreUpdate(values)
 	if !ok {
-		log.Printf("received malformed leaderboard delta for game %s: %#v", gameID, values)
+		log.Warn("received malformed leaderboard delta for game %s: %#v", gameID, values)
 		return
 	}
 

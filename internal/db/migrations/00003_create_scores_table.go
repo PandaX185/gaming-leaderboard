@@ -17,7 +17,8 @@ func Migrate00003(ctx context.Context, db *pgxpool.Pool) error {
 
 	    PRIMARY KEY (player_id, game_id),
 	    FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE,
-	    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
+	    FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
+		CONSTRAINT check_score CHECK (score >= 0)
 	);
 	`)
 	if err != nil {

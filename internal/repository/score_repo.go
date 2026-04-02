@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/log"
 	"iter"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,17 +23,25 @@ func NewPostgresScoreRepository(db *pgxpool.Pool) ScoreRepository {
 }
 
 func (r *postgresScoreRepository) UpdateScore(ctx context.Context, gameID int, playerID int, delta int) error {
+	log.Info("ScoreRepository UpdateScore called gameID=%d playerID=%d delta=%d", gameID, playerID, delta)
 	_, err := r.db.Exec(ctx, `
 		insert into scores (player_id, game_id, score)
 		values ($1, $2, $3)
 		on conflict (player_id, game_id) do update set score = scores.score + $3
 	`, playerID, gameID, delta)
-	return err
+	if err != nil {
+		log.Error("ScoreRepository UpdateScore failed gameID=%d playerID=%d err=%v", gameID, playerID, err)
+		return err
+	}
+	log.Info("ScoreRepository UpdateScore success gameID=%d playerID=%d", gameID, playerID)
+	return nil
 }
 
 func (r *postgresScoreRepository) GetAllLeaderboards(ctx context.Context) (iter.Seq[dto.ScoreResponse], error) {
+	log.Info("ScoreRepository GetAllLeaderboards called")
 	rows, err := r.db.Query(ctx, "select player_id, game_id, score from scores")
 	if err != nil {
+		log.Error("ScoreRepository GetAllLeaderboards query failed: %v", err)
 		return nil, err
 	}
 
@@ -41,6 +50,7 @@ func (r *postgresScoreRepository) GetAllLeaderboards(ctx context.Context) (iter.
 		for rows.Next() {
 			var score dto.ScoreResponse
 			if err := rows.Scan(&score.PlayerID, &score.GameID, &score.Score); err != nil {
+				log.Error("ScoreRepository GetAllLeaderboards scan failed: %v", err)
 				return
 			}
 			if !yield(score) {

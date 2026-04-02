@@ -2,9 +2,9 @@ package worker
 
 import (
 	"context"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/metrics"
-	"log"
 	"os"
 	"strconv"
 )
@@ -41,7 +41,7 @@ func (w *Worker) Start(ctx context.Context) {
 					if err := event.Handler(ctx, event.Payload); err != nil {
 						metrics.WorkerErrors.Inc()
 						if event.Attempt < w.maxRetries {
-							log.Printf("Attempt %d failed, retrying...\n", event.Attempt+1)
+							log.Info("Attempt %d failed, retrying...", event.Attempt+1)
 							event.Attempt++
 							metrics.WorkerRetriesTotal.WithLabelValues(event.Type).Inc()
 
@@ -49,7 +49,7 @@ func (w *Worker) Start(ctx context.Context) {
 								eventsChan <- e
 							}(event)
 						} else {
-							log.Printf("Max retries reached for event %s, discarding", event.Type)
+							log.Warn("Max retries reached for event %s, discarding", event.Type)
 							if event.Ack != nil {
 								event.Ack(ctx)
 							}
@@ -60,7 +60,7 @@ func (w *Worker) Start(ctx context.Context) {
 					metrics.WorkerInFlight.Dec()
 
 				case <-ctx.Done():
-					log.Println("Worker shutting down...")
+					log.Info("Worker shutting down...")
 					return
 				}
 			}

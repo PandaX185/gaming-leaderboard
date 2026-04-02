@@ -11,20 +11,15 @@ func Migrate00001(ctx context.Context, db *pgxpool.Pool) error {
 	CREATE TABLE IF NOT EXISTS players (
 	    id SERIAL PRIMARY KEY,
 	    username VARCHAR(255) NOT NULL,
-	    score INT NOT NULL,
+		password TEXT NOT NULL,
 	    created_at TIMESTAMP DEFAULT now(),
 	    updated_at TIMESTAMP DEFAULT now(),
 
-	    CONSTRAINT unique_username UNIQUE (username),
-	    CONSTRAINT check_score CHECK (score >= 0)
-	);
+	    CONSTRAINT unique_username UNIQUE (username)
+		);
 	`)
 	if err != nil {
 		return err
 	}
-
-	_, err = db.Exec(ctx, `
-	CREATE INDEX IF NOT EXISTS idx_players_score ON players(score DESC);
-	`)
-	return err
+	return nil
 }

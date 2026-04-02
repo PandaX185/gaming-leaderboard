@@ -26,6 +26,7 @@ func (s *ScoreService) UpdateScore(ctx context.Context, playerID int, gameID int
 	if err := s.scoreQ.PublishEvent(ctx, data); err != nil {
 		return nil, err
 	}
+
 	return &dto.ScoreUpdated{
 		Message: "Score update queued successfully",
 	}, nil

@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
 	"gaming-leaderboard/metrics"
-	"log"
 	"strings"
 	"time"
 
@@ -67,7 +67,7 @@ func (q *ScoreQueue) GetEvents() chan Event {
 
 	err := q.rdb.XGroupCreateMkStream(context.Background(), consts.ScoreEvents, consts.ScoreConsumerGroup, "$").Err()
 	if err != nil && !strings.Contains(err.Error(), "exists") {
-		log.Printf("Error creating score consumer group: %v", err)
+		log.Error("Error creating score consumer group: %v", err)
 	}
 
 	go func() {
@@ -87,7 +87,7 @@ func (q *ScoreQueue) GetEvents() chan Event {
 				if err == redis.Nil {
 					return
 				} else if err != nil {
-					log.Printf("Error reading from Score Redis Group: %v", err)
+					log.Error("Error reading from Score Redis Group: %v", err)
 					metrics.QueueReadErrorsTotal.WithLabelValues("score_xreadgroup").Inc()
 					time.Sleep(time.Second)
 					return

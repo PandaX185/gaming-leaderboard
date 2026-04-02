@@ -2,6 +2,7 @@ package handler
 
 import (
 	"gaming-leaderboard/internal/dto"
+	"gaming-leaderboard/internal/errors"
 	"gaming-leaderboard/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -26,17 +27,20 @@ func (h *ScoreHandler) RegisterRoutes() {
 func (h *ScoreHandler) UpdateScore(c *gin.Context) {
 	data := &dto.UpdateScoreRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		HandleError(c, errors.NewBadRequest("Invalid request", err), "")
+		c.Abort()
 		return
 	}
 	if err := dto.ValidateStructRequest(data); err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
+		c.Abort()
 		return
 	}
 
 	resp, err := h.svc.UpdateScore(c.Request.Context(), data.PlayerID, data.GameID, data.Score)
 	if err != nil {
-		c.JSON(500, gin.H{"error": "Failed to update score " + err.Error()})
+		HandleError(c, err, "failed to update score")
+		c.Abort()
 		return
 	}
 

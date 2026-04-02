@@ -2,8 +2,8 @@ package queue
 
 import (
 	"context"
+	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
-	"log"
 
 	"github.com/redis/go-redis/v9"
 )

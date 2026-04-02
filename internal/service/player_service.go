@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"gaming-leaderboard/internal/dto"
-	"gaming-leaderboard/internal/model"
 	"gaming-leaderboard/internal/queue"
 	"gaming-leaderboard/internal/repository"
 	"time"
@@ -25,10 +24,21 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 	data.CreatedAt = time.Now()
 	data.UpdatedAt = time.Now()
 
-	if err := s.playerQ.PublishEvent(ctx, data); err != nil {
+	id, err := s.repo.Insert(ctx, data)
+	if err != nil {
 		return nil, err
 	}
-	return model.Player{}.FromDTO(data).ToResponse(), nil
+
+	response := &dto.PlayerResponse{
+		ID:        id,
+		Username:  data.Username,
+		CreatedAt: data.CreatedAt,
+		UpdatedAt: data.UpdatedAt,
+	}
+
+	_ = s.playerQ.PublishEvent(ctx, data)
+
+	return response, nil
 }
 
 func (s *PlayerService) GetPlayerByID(ctx context.Context, id int) (*dto.PlayerResponse, error) {
