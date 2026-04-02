@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"fmt"
 	"gaming-leaderboard/internal/repository"
 	"log"
 	"net/http"
@@ -16,20 +17,20 @@ import (
 
 type ScoreUpdate struct {
 	Type     string  `json:"type"`
-	PlayerID string  `json:"player_id"`
+	PlayerID int     `json:"player_id"`
 	Score    float64 `json:"score"`
 	Rank     int64   `json:"rank"`
 }
 
 type LeaderboardEntry struct {
 	Rank     int64   `json:"rank"`
-	PlayerID string  `json:"player_id"`
+	PlayerID int     `json:"player_id"`
 	Score    float64 `json:"score"`
 }
 
 type LeaderboardSnapshot struct {
 	Type        string             `json:"type"`
-	GameID      string             `json:"game_id"`
+	GameID      int                `json:"game_id"`
 	Leaderboard []LeaderboardEntry `json:"leaderboard"`
 	Timestamp   int64              `json:"timestamp"`
 }
@@ -72,9 +73,15 @@ func NewLeaderboardHub(rdb *redis.Client) *LeaderboardHub {
 }
 
 func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
-	gameID := c.Param("id")
-	if gameID == "" {
+	gameIDStr := c.Param("id")
+	if gameIDStr == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "game id is required"})
+		return
+	}
+
+	gameID, err := strconv.Atoi(gameIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game id"})
 		return
 	}
 
@@ -93,8 +100,8 @@ func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
 		_ = client.writeJSON(snapshot)
 	}
 
-	h.addClient(gameID, client)
-	defer h.removeClient(gameID, client)
+	h.addClient(gameIDStr, client)
+	defer h.removeClient(gameIDStr, client)
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
@@ -147,7 +154,12 @@ func (h *LeaderboardHub) removeClient(gameID string, client *wsClient) {
 	}
 }
 
-func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameID string, stream string) {
+func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr string, stream string) {
+	gameID, err := strconv.Atoi(gameIDStr)
+	if err != nil {
+		log.Printf("Invalid game ID in consumeGameUpdates: %s", gameIDStr)
+		return
+	}
 	lastID := "$"
 	for {
 		select {
@@ -176,7 +188,7 @@ func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameID string, 
 		for _, chunk := range resp {
 			for _, msg := range chunk.Messages {
 				lastID = msg.ID
-				h.broadcastDeltaToGame(gameID, msg.Values)
+				h.broadcastDeltaToGame(gameIDStr, msg.Values)
 			}
 		}
 	}
@@ -201,8 +213,8 @@ func (h *LeaderboardHub) broadcastDeltaToGame(gameID string, values map[string]a
 	}
 }
 
-func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID string) (LeaderboardSnapshot, error) {
-	key := repository.LeaderboardKey(gameID)
+func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID int) (LeaderboardSnapshot, error) {
+	key := repository.LeaderboardKey(fmt.Sprintf("%d", gameID))
 	rows, err := h.rdb.ZRevRangeWithScores(ctx, key, 0, 99).Result()
 	if err != nil {
 		return LeaderboardSnapshot{}, err
@@ -210,8 +222,12 @@ func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID st
 
 	entries := make([]LeaderboardEntry, 0, len(rows))
 	for i, row := range rows {
-		playerID, ok := row.Member.(string)
+		playerIDStr, ok := row.Member.(string)
 		if !ok {
+			continue
+		}
+		playerID, err := strconv.Atoi(playerIDStr)
+		if err != nil {
 			continue
 		}
 
@@ -247,8 +263,12 @@ func (h *LeaderboardHub) getClients(gameID string) []*wsClient {
 }
 
 func toScoreUpdate(values map[string]any) (ScoreUpdate, bool) {
-	playerID, ok := asString(values["player_id"])
+	playerIDStr, ok := asString(values["player_id"])
 	if !ok {
+		return ScoreUpdate{}, false
+	}
+	playerID, err := strconv.Atoi(playerIDStr)
+	if err != nil {
 		return ScoreUpdate{}, false
 	}
 

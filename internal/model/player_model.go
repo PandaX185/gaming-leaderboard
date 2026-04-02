@@ -6,15 +6,14 @@ import (
 )
 
 type Player struct {
-	ID        string    `bson:"_id,omitempty"`
-	Username  string    `bson:"username,unique"`
-	CreatedAt time.Time `bson:"created_at"`
-	UpdatedAt time.Time `bson:"updated_at,omitempty"`
+	ID        int       `db:"id"`
+	Username  string    `db:"username"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func (u Player) FromDTO(data *dto.CreatePlayerRequest) Player {
 	return Player{
-		ID:        data.ID,
 		Username:  data.Username,
 		CreatedAt: data.CreatedAt,
 		UpdatedAt: data.UpdatedAt,

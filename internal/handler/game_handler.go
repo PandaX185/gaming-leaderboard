@@ -3,6 +3,7 @@ package handler
 import (
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/service"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -49,7 +50,12 @@ func (h *GameHandler) CreateGame(c *gin.Context) {
 }
 
 func (h *GameHandler) GetGameByID(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
 	resp, err := h.svc.GetGameByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "Game not found " + err.Error()})
@@ -60,7 +66,12 @@ func (h *GameHandler) GetGameByID(c *gin.Context) {
 }
 
 func (h *GameHandler) GetGameScores(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
 	params := &dto.PaginationParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid query parameters"})
@@ -103,7 +114,12 @@ func (h *GameHandler) GetAllGames(c *gin.Context) {
 }
 
 func (h *GameHandler) UpdateGame(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
 	data := &dto.UpdateGameRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request"})
@@ -124,8 +140,13 @@ func (h *GameHandler) UpdateGame(c *gin.Context) {
 }
 
 func (h *GameHandler) DeleteGame(c *gin.Context) {
-	id := c.Param("id")
-	err := h.svc.DeleteGame(c.Request.Context(), id)
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
+	err = h.svc.DeleteGame(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(500, gin.H{"error": "Failed to delete game " + err.Error()})
 		return

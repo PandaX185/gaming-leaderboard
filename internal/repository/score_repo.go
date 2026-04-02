@@ -9,7 +9,7 @@ import (
 )
 
 type ScoreRepository interface {
-	UpdateScore(context.Context, string, string, int) error
+	UpdateScore(context.Context, int, int, int) error
 	GetAllLeaderboards(ctx context.Context) (iter.Seq[dto.ScoreResponse], error)
 }
 
@@ -21,7 +21,7 @@ func NewPostgresScoreRepository(db *pgxpool.Pool) ScoreRepository {
 	return &postgresScoreRepository{db: db}
 }
 
-func (r *postgresScoreRepository) UpdateScore(ctx context.Context, gameID string, playerID string, delta int) error {
+func (r *postgresScoreRepository) UpdateScore(ctx context.Context, gameID int, playerID int, delta int) error {
 	_, err := r.db.Exec(ctx, `
 		insert into scores (player_id, game_id, score)
 		values ($1, $2, $3)

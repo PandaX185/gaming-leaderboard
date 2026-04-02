@@ -16,7 +16,7 @@ func NewScoreService(scoreQ queue.IQueue) *ScoreService {
 	}
 }
 
-func (s *ScoreService) UpdateScore(ctx context.Context, playerID string, gameID string, score int) (*dto.ScoreUpdated, error) {
+func (s *ScoreService) UpdateScore(ctx context.Context, playerID int, gameID int, score int) (*dto.ScoreUpdated, error) {
 	data := &dto.UpdateScoreEvent{
 		PlayerID: playerID,
 		GameID:   gameID,

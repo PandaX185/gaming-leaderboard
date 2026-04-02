@@ -65,11 +65,7 @@ function connect() {
         setStatus("Game ID is required", false);
         return;
     }
-    if (!isMongoObjectId(gameId)) {
-        setStatus("Game ID must be a 24-char hex Mongo ObjectID", false);
-        ui.eventMeta.textContent = "Use game.id from GET /api/v1/games, not game name.";
-        return;
-    }
+
 
     disconnect();
 
@@ -317,6 +313,3 @@ function escapeHtml(value) {
         .replaceAll("'", "&#39;");
 }
 
-function isMongoObjectId(value) {
-    return /^[a-fA-F0-9]{24}$/.test(value);
-}

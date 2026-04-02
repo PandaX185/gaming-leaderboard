@@ -8,9 +8,9 @@ import (
 )
 
 type PlayerRepository interface {
-	Insert(context.Context, *dto.CreatePlayerRequest) error
+	Insert(context.Context, *dto.CreatePlayerRequest) (int, error)
 	UpdateScore(context.Context, *dto.UpdateScoreRequest) error
-	GetByID(context.Context, string) (*dto.PlayerResponse, error)
+	GetByID(context.Context, int) (*dto.PlayerResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
 	Count(context.Context) (int, error)
 }
@@ -23,9 +23,10 @@ func NewPostgresPlayerRepository(db *pgxpool.Pool) PlayerRepository {
 	return &postgresPlayerRepository{db: db}
 }
 
-func (r *postgresPlayerRepository) Insert(ctx context.Context, req *dto.CreatePlayerRequest) error {
-	_, err := r.db.Exec(ctx, "insert into players(id, username, password, created_at, updated_at) values ($1, $2, $3, $4, $5)", req.ID, req.Username, req.Password, req.CreatedAt, req.UpdatedAt)
-	return err
+func (r *postgresPlayerRepository) Insert(ctx context.Context, req *dto.CreatePlayerRequest) (int, error) {
+	var id int
+	err := r.db.QueryRow(ctx, "insert into players(username, password, created_at, updated_at) values ($1, $2, $3, $4) returning id", req.Username, req.Password, req.CreatedAt, req.UpdatedAt).Scan(&id)
+	return id, err
 }
 
 func (r *postgresPlayerRepository) UpdateScore(ctx context.Context, req *dto.UpdateScoreRequest) error {
@@ -33,7 +34,7 @@ func (r *postgresPlayerRepository) UpdateScore(ctx context.Context, req *dto.Upd
 	return err
 }
 
-func (r *postgresPlayerRepository) GetByID(ctx context.Context, id string) (*dto.PlayerResponse, error) {
+func (r *postgresPlayerRepository) GetByID(ctx context.Context, id int) (*dto.PlayerResponse, error) {
 	var player dto.PlayerResponse
 	if err := r.db.
 		QueryRow(ctx, "select id, username, created_at, updated_at from players where id = $1", id).

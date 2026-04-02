@@ -9,11 +9,11 @@ import (
 
 type GameRepository interface {
 	Insert(context.Context, *dto.CreateGameRequest) (*dto.GameResponse, error)
-	GetByID(context.Context, string) (*dto.GameResponse, error)
+	GetByID(context.Context, int) (*dto.GameResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
-	GetScores(context.Context, string, *dto.PaginationParams) (*dto.PaginatedResponse, error)
-	Update(context.Context, string, *dto.UpdateGameRequest) (*dto.GameResponse, error)
-	Delete(context.Context, string) error
+	GetScores(context.Context, int, *dto.PaginationParams) (*dto.PaginatedResponse, error)
+	Update(context.Context, int, *dto.UpdateGameRequest) (*dto.GameResponse, error)
+	Delete(context.Context, int) error
 }
 
 type postgresGameRepository struct {
@@ -34,7 +34,7 @@ func (r *postgresGameRepository) Insert(ctx context.Context, req *dto.CreateGame
 	return &game, nil
 }
 
-func (r *postgresGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
+func (r *postgresGameRepository) GetByID(ctx context.Context, id int) (*dto.GameResponse, error) {
 	var game dto.GameResponse
 	if err := r.db.
 		QueryRow(ctx, "select id, name, created_at, updated_at from games where id = $1", id).
@@ -73,7 +73,7 @@ func (r *postgresGameRepository) GetAll(ctx context.Context, params *dto.Paginat
 	}, nil
 }
 
-func (r *postgresGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+func (r *postgresGameRepository) GetScores(ctx context.Context, gameID int, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
 	rows, err := r.db.Query(ctx, "select player_id, score, created_at, updated_at from scores where game_id = $1 limit $2 offset $3", gameID, params.PageSize, (params.Page-1)*params.PageSize)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (r *postgresGameRepository) GetScores(ctx context.Context, gameID string, p
 	}, nil
 }
 
-func (r *postgresGameRepository) Update(ctx context.Context, id string, req *dto.UpdateGameRequest) (*dto.GameResponse, error) {
+func (r *postgresGameRepository) Update(ctx context.Context, id int, req *dto.UpdateGameRequest) (*dto.GameResponse, error) {
 	var game dto.GameResponse
 	if err := r.db.
 		QueryRow(ctx, "update games set name = $1, updated_at = now() where id = $2 returning id, name, created_at, updated_at", req.Name, id).
@@ -112,7 +112,7 @@ func (r *postgresGameRepository) Update(ctx context.Context, id string, req *dto
 	return &game, nil
 }
 
-func (r *postgresGameRepository) Delete(ctx context.Context, id string) error {
+func (r *postgresGameRepository) Delete(ctx context.Context, id int) error {
 	if _, err := r.db.Exec(ctx, "delete from games where id = $1", id); err != nil {
 		return err
 	}

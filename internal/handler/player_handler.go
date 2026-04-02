@@ -3,6 +3,7 @@ package handler
 import (
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/service"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -46,7 +47,12 @@ func (h *PlayerHandler) CreatePlayer(c *gin.Context) {
 }
 
 func (h *PlayerHandler) GetPlayerByID(c *gin.Context) {
-	id := c.Param("id")
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Invalid ID"})
+		return
+	}
 	resp, err := h.svc.GetPlayerByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(404, gin.H{"error": "Player not found " + err.Error()})

@@ -3,6 +3,7 @@ package queue
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/repository"
@@ -171,7 +172,8 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 			if err := json.Unmarshal([]byte(payloadStr), &req); err == nil {
 				event.Payload = &req
 				dbHandler = func(workerCtx context.Context, p any) error {
-					return q.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest))
+					_, err := q.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest))
+					return err
 				}
 			}
 		case "ScoreUpdated":
@@ -232,15 +234,15 @@ func (q *RedisPlayerQueue) processMessages(messages []redis.XMessage, events cha
 }
 
 func (q *RedisPlayerQueue) emitScoreDeltaUpdate(ctx context.Context, scoreEvent *dto.UpdateScoreEvent) {
-	leaderboardKey := repository.LeaderboardKey(scoreEvent.GameID)
-	score, scoreErr := q.rdb.ZScore(ctx, leaderboardKey, scoreEvent.PlayerID).Result()
-	rank, rankErr := q.rdb.ZRevRank(ctx, leaderboardKey, scoreEvent.PlayerID).Result()
+	leaderboardKey := repository.LeaderboardKey(fmt.Sprintf("%d", scoreEvent.GameID))
+	score, scoreErr := q.rdb.ZScore(ctx, leaderboardKey, fmt.Sprintf("%d", scoreEvent.PlayerID)).Result()
+	rank, rankErr := q.rdb.ZRevRank(ctx, leaderboardKey, fmt.Sprintf("%d", scoreEvent.PlayerID)).Result()
 	if scoreErr != nil || rankErr != nil {
-		log.Printf("Failed to resolve score/rank for game %s player %s: scoreErr=%v rankErr=%v", scoreEvent.GameID, scoreEvent.PlayerID, scoreErr, rankErr)
+		log.Printf("Failed to resolve score/rank for game %d player %d: scoreErr=%v rankErr=%v", scoreEvent.GameID, scoreEvent.PlayerID, scoreErr, rankErr)
 		return
 	}
 
-	stream := repository.LeaderboardUpdatesStream(scoreEvent.GameID)
+	stream := repository.LeaderboardUpdatesStream(fmt.Sprintf("%d", scoreEvent.GameID))
 	if addErr := q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: stream,
 		MaxLen: 10000,
