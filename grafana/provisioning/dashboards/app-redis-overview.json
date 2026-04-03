@@ -456,7 +456,7 @@
       },
       "targets": [
         {
-          "expr": "pg_up",
+          "expr": "up{job=\"postgres\"}",
           "refId": "A"
         }
       ],
@@ -486,7 +486,7 @@
       },
       "targets": [
         {
-          "expr": "pg_stat_activity_count",
+          "expr": "sum(pg_stat_activity_count{datname=\"gaming_leaderboard\"})",
           "refId": "A"
         }
       ],

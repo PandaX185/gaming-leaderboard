@@ -15,7 +15,7 @@ type ScoreRepository interface {
 	GetAllLeaderboards(ctx context.Context) (iter.Seq[dto.ScoreResponse], error)
 }
 
-type scoreUpdate struct {
+type scoreUpdate struct {	
 	playerID string
 	gameID   string
 	delta    int
