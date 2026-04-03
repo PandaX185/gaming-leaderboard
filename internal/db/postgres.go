@@ -15,7 +15,7 @@ func InitPostgres() *pgxpool.Pool {
 	if err != nil {
 		panic(err)
 	}
-	config.MaxConns = 200
+	config.MaxConns = 500
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = 30 * time.Minute
 	config.ConnConfig.ConnectTimeout = 5 * time.Second

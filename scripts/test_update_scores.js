@@ -58,10 +58,11 @@ export function updateScore(data) {
     const player = playerIds[Math.floor(Math.random() * playerIds.length)];
     const game = gameIds[Math.floor(Math.random() * gameIds.length)];
     const scorePayload = JSON.stringify({
+        player_id: player,
         game_id: game,
         score: Math.floor(Math.random() * 1000) + 1,
     });
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/players/${player}/score`, scorePayload, params);
+    const scoreRes = http.put(`http://host.docker.internal:8080/api/v1/scores`, scorePayload, params);
     check(scoreRes, { '200 OK': (r) => r.status === 200 });
 }
