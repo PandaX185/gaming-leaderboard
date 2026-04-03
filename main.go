@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/db"
 	"gaming-leaderboard/internal/handler"
 	"gaming-leaderboard/internal/log"
@@ -61,12 +62,12 @@ func main() {
 		log.Info("Database connections closed")
 	}()
 
-	playerQueue := queue.NewRedisQueue(playerRepo, redisClient)
-	playerWorker := worker.NewWorker(playerQueue).SetMaxRetries(5)
+	playerQueue := queue.NewRedisQueue(redisClient, consts.PlayerEvents, consts.PlayerConsumerGroup)
+	playerWorker := worker.NewWorker(playerQueue, playerRepo, leaderboardCache).SetMaxRetries(5)
 	go playerWorker.Start(context.Background())
 
-	scoreQueue := queue.NewRedisQueue(scoreRepo, redisClient)
-	scoreWorker := worker.NewWorker(scoreQueue).SetMaxRetries(5)
+	scoreQueue := queue.NewRedisQueue(redisClient, consts.ScoreEvents, consts.ScoreConsumerGroup)
+	scoreWorker := worker.NewWorker(scoreQueue, scoreRepo, leaderboardCache).SetMaxRetries(5)
 	go scoreWorker.Start(context.Background())
 
 	playerService := service.NewPlayerService(playerRepo, playerQueue, leaderboardCache)

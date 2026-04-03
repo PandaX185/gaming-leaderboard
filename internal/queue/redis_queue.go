@@ -17,14 +17,16 @@ import (
 type RedisQueue struct {
 	rdb        *redis.Client
 	consumerId string
+	stream     string
+	group      string
 }
 
-func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
+func NewRedisQueue(rdb *redis.Client, stream string, group string) IQueue {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
 	if err := rdb.
-		XGroupCreateMkStream(ctx, consts.ScoreEvents, consts.ConsumerGroup, "0-0").
+		XGroupCreateMkStream(ctx, stream, group, "0-0").
 		Err(); err != nil && err != redis.Nil {
 		if !strings.Contains(err.Error(), "BUSYGROUP") {
 			log.Error("Failed to create Redis consumer group: %v", err)
@@ -38,10 +40,10 @@ func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 		for {
-			length, err := rdb.XLen(ctx, consts.ScoreEvents).Result()
+			length, err := rdb.XLen(ctx, stream).Result()
 			if err == nil {
 				metrics.QueueSize.Set(float64(length))
-				metrics.QueueSizeByStream.WithLabelValues(consts.ScoreEvents).Set(float64(length))
+				metrics.QueueSizeByStream.WithLabelValues(stream).Set(float64(length))
 			}
 			time.Sleep(5 * time.Second)
 		}
@@ -50,6 +52,8 @@ func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
 	return &RedisQueue{
 		rdb:        rdb,
 		consumerId: consumerID,
+		stream:     stream,
+		group:      group,
 	}
 }
 
@@ -59,12 +63,12 @@ func (q *RedisQueue) PublishEvent(ctx context.Context, event Event) error {
 		return err
 	}
 
-	log.Info("publishing event %v", data)
+	log.Info("publishing event %v", event.Type)
 	if err := q.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: consts.ScoreEvents,
+		Stream: q.stream,
 		MaxLen: 10000,
 		Approx: true,
-		Values: map[string]interface{}{"data": string(data)},
+		Values: []interface{}{"data", string(data)},
 	}).Err(); err != nil {
 		if !strings.Contains(err.Error(), "BUSYGROUP") {
 			return err
@@ -93,9 +97,9 @@ func (q *RedisQueue) readStream(events chan Event) {
 			defer cancel()
 
 			streams, err := q.rdb.XReadGroup(ctx, &redis.XReadGroupArgs{
-				Group:    consts.ConsumerGroup,
+				Group:    q.group,
 				Consumer: q.consumerId,
-				Streams:  []string{consts.ScoreEvents, ">"},
+				Streams:  []string{q.stream, ">"},
 				Count:    50,
 				Block:    time.Second * 5,
 			}).Result()
@@ -123,8 +127,8 @@ func (q *RedisQueue) autoClaim(events chan Event) {
 			defer cancel()
 
 			messages, _, err := q.rdb.XAutoClaim(ctx, &redis.XAutoClaimArgs{
-				Stream:   consts.ScoreEvents,
-				Group:    consts.ConsumerGroup,
+				Stream:   q.stream,
+				Group:    q.group,
 				Consumer: q.consumerId,
 				MinIdle:  consts.ReclaimTime,
 				Start:    "0-0",
@@ -166,11 +170,11 @@ func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Even
 			continue
 		}
 
-		log.Info("processing event %v", event)
+		log.Info("processing event %v", event.Type)
 
 		event.Ack = func(ctx context.Context) error {
 			log.Info("acking event %v", message.ID)
-			err := q.rdb.XAck(ctx, consts.ScoreEvents, consts.ConsumerGroup, message.ID).Err()
+			err := q.rdb.XAck(ctx, q.stream, q.group, message.ID).Err()
 			if err != nil {
 				metrics.QueueAckTotal.WithLabelValues(event.Type, "error").Inc()
 			} else {
@@ -179,7 +183,7 @@ func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Even
 			return err
 		}
 
-		log.Info("processed event %v successfully", event)
+		log.Info("processed event %v successfully", event.Type)
 		events <- event
 		metrics.QueueConsumedTotal.WithLabelValues(event.Type, source).Inc()
 	}

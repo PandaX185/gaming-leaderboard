@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"encoding/json"
 	"gaming-leaderboard/internal/consts"
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/log"
@@ -15,14 +16,15 @@ import (
 type Worker struct {
 	qu         queue.IQueue
 	maxRetries int
-	playerRepo repository.PlayerRepository
-	scoreRepo  repository.ScoreRepository
+	repo       any
 	cache      repository.LeaderboardCache
 }
 
-func NewWorker(qu queue.IQueue) *Worker {
+func NewWorker(qu queue.IQueue, repo any, cache repository.LeaderboardCache) *Worker {
 	return &Worker{
-		qu: qu,
+		qu:    qu,
+		repo:  repo,
+		cache: cache,
 	}
 }
 
@@ -88,16 +90,49 @@ func (w *Worker) Start(ctx context.Context) {
 func (w *Worker) getEventHandler(event queue.Event) func(ctx context.Context, payload any) error {
 	switch event.Type {
 	case consts.PlayerCreatedEvent:
+		if _, ok := w.repo.(repository.PlayerRepository); !ok {
+			log.Error("Invalid repository type for PlayerCreatedEvent")
+			return func(ctx context.Context, payload any) error {
+				return nil
+			}
+		}
 		return func(workerCtx context.Context, p any) error {
-			if err := w.playerRepo.Insert(workerCtx, p.(*dto.CreatePlayerRequest)); err != nil {
+			req, ok := p.(*dto.CreatePlayerRequest)
+			if !ok {
+				bytes, err := json.Marshal(p)
+				if err != nil {
+					return err
+				}
+				req = &dto.CreatePlayerRequest{}
+				if err := json.Unmarshal(bytes, req); err != nil {
+					return err
+				}
+			}
+			if err := w.repo.(repository.PlayerRepository).Insert(workerCtx, req); err != nil {
 				return err
 			}
 			return w.cache.IncrementPlayerCount(workerCtx)
 		}
 	case consts.ScoreUpdatedEvent:
+		if _, ok := w.repo.(repository.ScoreRepository); !ok {
+			log.Error("Invalid repository type for ScoreUpdatedEvent")
+			return func(ctx context.Context, payload any) error {
+				return nil
+			}
+		}
 		return func(workerCtx context.Context, p any) error {
-			data := p.(*dto.UpdateScoreEvent)
-			if err := w.scoreRepo.UpdateScore(workerCtx, data.PlayerID, data.GameID, data.Score); err != nil {
+			data, ok := p.(*dto.UpdateScoreEvent)
+			if !ok {
+				bytes, err := json.Marshal(p)
+				if err != nil {
+					return err
+				}
+				data = &dto.UpdateScoreEvent{}
+				if err := json.Unmarshal(bytes, data); err != nil {
+					return err
+				}
+			}
+			if err := w.repo.(repository.ScoreRepository).UpdateScore(workerCtx, data.PlayerID, data.GameID, data.Score); err != nil {
 				return err
 			}
 			return w.cache.IncrementScore(workerCtx, data.PlayerID, data.GameID, data.Score)
