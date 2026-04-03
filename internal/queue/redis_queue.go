@@ -7,6 +7,7 @@ import (
 	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/metrics"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -25,7 +26,9 @@ func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
 	if err := rdb.
 		XGroupCreateMkStream(ctx, consts.ScoreEvents, consts.ConsumerGroup, "0-0").
 		Err(); err != nil && err != redis.Nil {
-		log.Error("Failed to create Redis consumer group: %v", err)
+		if !strings.Contains(err.Error(), "BUSYGROUP") {
+			log.Error("Failed to create Redis consumer group: %v", err)
+		}
 	}
 
 	hostname, _ := os.Hostname()
@@ -51,14 +54,19 @@ func NewRedisQueue(repo any, rdb *redis.Client) IQueue {
 }
 
 func (q *RedisQueue) PublishEvent(ctx context.Context, event Event) error {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
 	if err := q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: consts.ScoreEvents,
 		MaxLen: 10000,
 		Approx: true,
-		Values: event,
+		Values: map[string]interface{}{"data": string(data)},
 	}).Err(); err != nil {
-		metrics.QueuePublishedTotal.WithLabelValues(event.Type, "error").Inc()
-		return err
+		if !strings.Contains(err.Error(), "BUSYGROUP") {
+			return err
+		}
 	}
 	metrics.QueuePublishedTotal.WithLabelValues(event.Type, "success").Inc()
 	return nil
@@ -135,28 +143,36 @@ func (q *RedisQueue) autoClaim(events chan Event) {
 
 func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Event, source string) {
 	for _, message := range messages {
-		payloadRaw, ok := message.Values["Payload"]
-		if !ok || payloadRaw == nil {
-			log.Error("Missing Payload in message: %v", message.ID)
+		dataRaw, ok := message.Values["data"]
+		if !ok || dataRaw == nil {
+			log.Error("Missing data in message: %v", message.ID)
 			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
 			continue
 		}
-		payloadStr, ok := payloadRaw.(string)
+		dataStr, ok := dataRaw.(string)
 		if !ok {
-			log.Error("Payload is not a string in message: %v", message.ID)
+			log.Error("data is not a string in message: %v", message.ID)
 			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
 			continue
 		}
 		var event Event
-		if err := json.Unmarshal([]byte(payloadStr), &event); err != nil {
+		if err := json.Unmarshal([]byte(dataStr), &event); err != nil {
 			log.Error("Failed to unmarshal event: %v", err)
 			metrics.QueueReadErrorsTotal.WithLabelValues(source).Inc()
 			continue
 		}
 
 		event.Ack = func(ctx context.Context) error {
-			return q.rdb.XAck(ctx, consts.ScoreEvents, consts.ConsumerGroup, message.ID).Err()
+			err := q.rdb.XAck(ctx, consts.ScoreEvents, consts.ConsumerGroup, message.ID).Err()
+			if err != nil {
+				metrics.QueueAckTotal.WithLabelValues(event.Type, "error").Inc()
+			} else {
+				metrics.QueueAckTotal.WithLabelValues(event.Type, "success").Inc()
+			}
+			return err
 		}
+
 		events <- event
+		metrics.QueueConsumedTotal.WithLabelValues(event.Type, source).Inc()
 	}
 }

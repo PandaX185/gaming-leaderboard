@@ -39,6 +39,7 @@ func (w *Worker) Start(ctx context.Context) {
 				case event := <-eventsChan:
 					metrics.WorkerInFlight.Inc()
 					if err := event.Handler(ctx, event.Payload); err != nil {
+						log.Error("Failed to handle the event %v with error %v", event, err)
 						metrics.WorkerErrors.Inc()
 						if event.Attempt < w.maxRetries {
 							log.Info("Attempt %d failed, retrying...", event.Attempt+1)
@@ -51,10 +52,22 @@ func (w *Worker) Start(ctx context.Context) {
 						} else {
 							log.Warn("Max retries reached for event %s, discarding", event.Type)
 							if event.Ack != nil {
-								event.Ack(ctx)
+								if ackErr := event.Ack(ctx); ackErr != nil {
+									metrics.QueueAckTotal.WithLabelValues(event.Type, "error").Inc()
+								} else {
+									metrics.QueueAckTotal.WithLabelValues(event.Type, "success").Inc()
+								}
 							}
 						}
 					} else {
+						log.Info("Event %v handled successfully", event)
+						if event.Ack != nil {
+							if ackErr := event.Ack(ctx); ackErr != nil {
+								metrics.QueueAckTotal.WithLabelValues(event.Type, "error").Inc()
+							} else {
+								metrics.QueueAckTotal.WithLabelValues(event.Type, "success").Inc()
+							}
+						}
 						metrics.WorkerProcessed.Inc()
 					}
 					metrics.WorkerInFlight.Dec()

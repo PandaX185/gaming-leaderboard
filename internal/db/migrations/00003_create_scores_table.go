@@ -10,7 +10,7 @@ func Migrate00003(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, `
 	CREATE TABLE IF NOT EXISTS scores (
 	    player_id UUID NOT NULL,
-	    game_id INT NOT NULL,
+	    game_id UUID NOT NULL,
 	    score INT NOT NULL,
 	    created_at TIMESTAMP DEFAULT now(),
 	    updated_at TIMESTAMP DEFAULT now(),

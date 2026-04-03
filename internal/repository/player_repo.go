@@ -71,7 +71,7 @@ func (r *postgresPlayerRepository) GetByID(ctx context.Context, id string) (*dto
 
 func (r *postgresPlayerRepository) GetAll(ctx context.Context, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
 	rows, err := r.db.
-		Query(ctx, "select id, username, created_at, updated_at from players limit $1 offset $2 order by updated_at desc",
+		Query(ctx, "select id, username, created_at, updated_at from players order by updated_at desc limit $1 offset $2",
 			params.PageSize, (params.Page-1)*params.PageSize)
 	if err != nil {
 		log.Error("PlayerRepository GetAll query failed: %v", err)

@@ -8,8 +8,9 @@ import (
 
 func Migrate00002(ctx context.Context, db *pgxpool.Pool) error {
 	_, err := db.Exec(ctx, `
+	CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 	CREATE TABLE IF NOT EXISTS games (
-	    id SERIAL PRIMARY KEY,
+	    id UUID PRIMARY KEY default gen_random_uuid(),
 	    name VARCHAR(255) NOT NULL,
 	    created_at TIMESTAMP DEFAULT now(),
 	    updated_at TIMESTAMP DEFAULT now()

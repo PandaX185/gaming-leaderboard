@@ -45,7 +45,7 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 	}
 	data.ID = generatedID.String()
 
-	s.playerQ.PublishEvent(ctx, queue.Event{
+	if err := s.playerQ.PublishEvent(ctx, queue.Event{
 		Type:    consts.PlayerCreatedEvent,
 		Payload: data,
 		Handler: func(workerCtx context.Context, p any) error {
@@ -55,7 +55,9 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 			return s.cache.IncrementPlayerCount(workerCtx)
 		},
 		Attempt: 0,
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	return &dto.PlayerResponse{
 		ID:        data.ID,

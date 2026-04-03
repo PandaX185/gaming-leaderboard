@@ -33,9 +33,12 @@ func main() {
 	dbInstance := db.InitPostgres()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	log.Info("Applying database migrations")
 	if err := db.Migrate(ctx, dbInstance); err != nil {
 		log.Error("Failed to apply migrations: %v", err)
+		panic(err)
 	}
+	log.Info("Database migrations applied successfully")
 
 	redisURI := os.Getenv("REDIS_URI")
 	redisClient := db.InitRedis(redisURI)
