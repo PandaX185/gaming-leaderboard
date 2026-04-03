@@ -58,6 +58,8 @@ func (q *RedisQueue) PublishEvent(ctx context.Context, event Event) error {
 	if err != nil {
 		return err
 	}
+
+	log.Info("publishing event %v", data)
 	if err := q.rdb.XAdd(ctx, &redis.XAddArgs{
 		Stream: consts.ScoreEvents,
 		MaxLen: 10000,
@@ -68,6 +70,8 @@ func (q *RedisQueue) PublishEvent(ctx context.Context, event Event) error {
 			return err
 		}
 	}
+
+	log.Info("published event %v successfully", data)
 	metrics.QueuePublishedTotal.WithLabelValues(event.Type, "success").Inc()
 	return nil
 }
@@ -162,7 +166,10 @@ func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Even
 			continue
 		}
 
+		log.Info("processing event %v", event)
+
 		event.Ack = func(ctx context.Context) error {
+			log.Info("acking event %v", message.ID)
 			err := q.rdb.XAck(ctx, consts.ScoreEvents, consts.ConsumerGroup, message.ID).Err()
 			if err != nil {
 				metrics.QueueAckTotal.WithLabelValues(event.Type, "error").Inc()
@@ -172,6 +179,7 @@ func (q *RedisQueue) processMessages(messages []redis.XMessage, events chan Even
 			return err
 		}
 
+		log.Info("processed event %v successfully", event)
 		events <- event
 		metrics.QueueConsumedTotal.WithLabelValues(event.Type, source).Inc()
 	}

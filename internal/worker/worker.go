@@ -2,8 +2,11 @@ package worker
 
 import (
 	"context"
+	"gaming-leaderboard/internal/consts"
+	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/queue"
+	"gaming-leaderboard/internal/repository"
 	"gaming-leaderboard/metrics"
 	"os"
 	"strconv"
@@ -12,6 +15,9 @@ import (
 type Worker struct {
 	qu         queue.IQueue
 	maxRetries int
+	playerRepo repository.PlayerRepository
+	scoreRepo  repository.ScoreRepository
+	cache      repository.LeaderboardCache
 }
 
 func NewWorker(qu queue.IQueue) *Worker {
@@ -37,6 +43,7 @@ func (w *Worker) Start(ctx context.Context) {
 			for {
 				select {
 				case event := <-eventsChan:
+					event.Handler = w.getEventHandler(event)
 					metrics.WorkerInFlight.Inc()
 					if err := event.Handler(ctx, event.Payload); err != nil {
 						log.Error("Failed to handle the event %v with error %v", event, err)
@@ -45,10 +52,6 @@ func (w *Worker) Start(ctx context.Context) {
 							log.Info("Attempt %d failed, retrying...", event.Attempt+1)
 							event.Attempt++
 							metrics.WorkerRetriesTotal.WithLabelValues(event.Type).Inc()
-
-							go func(e queue.Event) {
-								eventsChan <- e
-							}(event)
 						} else {
 							log.Warn("Max retries reached for event %s, discarding", event.Type)
 							if event.Ack != nil {
@@ -80,4 +83,29 @@ func (w *Worker) Start(ctx context.Context) {
 		}()
 	}
 	<-ctx.Done()
+}
+
+func (w *Worker) getEventHandler(event queue.Event) func(ctx context.Context, payload any) error {
+	switch event.Type {
+	case consts.PlayerCreatedEvent:
+		return func(workerCtx context.Context, p any) error {
+			if err := w.playerRepo.Insert(workerCtx, p.(*dto.CreatePlayerRequest)); err != nil {
+				return err
+			}
+			return w.cache.IncrementPlayerCount(workerCtx)
+		}
+	case consts.ScoreUpdatedEvent:
+		return func(workerCtx context.Context, p any) error {
+			data := p.(*dto.UpdateScoreEvent)
+			if err := w.scoreRepo.UpdateScore(workerCtx, data.PlayerID, data.GameID, data.Score); err != nil {
+				return err
+			}
+			return w.cache.IncrementScore(workerCtx, data.PlayerID, data.GameID, data.Score)
+		}
+	default:
+		return func(ctx context.Context, payload any) error {
+			log.Warn("No handler for event type: %s", event.Type)
+			return nil
+		}
+	}
 }

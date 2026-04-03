@@ -48,12 +48,6 @@ func (s *PlayerService) CreatePlayer(ctx context.Context, data *dto.CreatePlayer
 	if err := s.playerQ.PublishEvent(ctx, queue.Event{
 		Type:    consts.PlayerCreatedEvent,
 		Payload: data,
-		Handler: func(workerCtx context.Context, p any) error {
-			if err := s.repo.Insert(workerCtx, p.(*dto.CreatePlayerRequest)); err != nil {
-				return err
-			}
-			return s.cache.IncrementPlayerCount(workerCtx)
-		},
 		Attempt: 0,
 	}); err != nil {
 		return nil, err

@@ -9,13 +9,13 @@ import (
 )
 
 type ScoreService struct {
-	repo repository.ScoreRepository
+	repo   repository.ScoreRepository
 	scoreQ queue.IQueue
 }
 
 func NewScoreService(repo repository.ScoreRepository, scoreQ queue.IQueue) *ScoreService {
 	return &ScoreService{
-		repo: repo,
+		repo:   repo,
 		scoreQ: scoreQ,
 	}
 }
@@ -28,11 +28,8 @@ func (s *ScoreService) UpdateScore(ctx context.Context, playerID string, gameID 
 	}
 
 	if err := s.scoreQ.PublishEvent(ctx, queue.Event{
-		Type: consts.ScoreUpdatedEvent,
+		Type:    consts.ScoreUpdatedEvent,
 		Payload: data,
-		Handler: func(workerCtx context.Context, p any) error {
-			return s.repo.UpdateScore(workerCtx, playerID, gameID, score)
-		},
 	}); err != nil {
 		return nil, err
 	}
