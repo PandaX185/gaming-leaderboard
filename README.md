@@ -25,7 +25,7 @@ A real-time gaming leaderboard system built with Go, MongoDB, and Redis. Track p
 | Real-time | WebSocket (gorilla/websocket) |
 | Monitoring | Prometheus + Grafana |
 | Frontend | Vanilla JS + HTML/CSS |
-| Containerisation | Docker + Docker Compose |
+| Containerisation | Docker + Docker Compose + Traefik |
 | Load Testing | k6 |
 
 ---
@@ -67,6 +67,8 @@ git clone https://github.com/PandaX185/gaming-leaderboard.git
 cd gaming-leaderboard
 docker-compose up --build
 ```
+
+Traefik will expose the backend API on port `8080` and proxy requests to the Go app service.
 
 | Service | URL |
 |---|---|

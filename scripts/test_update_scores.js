@@ -7,12 +7,12 @@ export const options = {
             executor: 'ramping-arrival-rate',
             startRate: 5,
             timeUnit: '1s',
-            preAllocatedVUs: 1000,
-            maxVUs: 2000,
+            preAllocatedVUs: 2000,
+            maxVUs: 4000,
             stages: [
                 { target: 1000, duration: '30s' },
-                { target: 3000, duration: '1m' },
-                { target: 7000, duration: '90s' },
+                { target: 5000, duration: '1m' },
+                { target: 10000, duration: '90s' },
             ],
             exec: 'updateScore',
         },
@@ -30,7 +30,7 @@ export function setup() {
 
     for (let i = 0; i < 10; i++) {
         const payload = JSON.stringify({ name: `Game_${Date.now()}_${i}` });
-        const res = http.post(`http://localhost:8080/api/v1/games`, payload, params);
+        const res = http.post(`http://localhost/api/v1/games`, payload, params);
         if (res.status === 201) {
             gameIds.push(res.json().id);
         }
@@ -41,7 +41,7 @@ export function setup() {
             username: `player_${Date.now()}_${i}`,
             password: 'password123',
         });
-        const res = http.post(`http://localhost:8080/api/v1/players`, payload, params);
+        const res = http.post(`http://localhost/api/v1/players`, payload, params);
         if (res.status === 201) {
             playerIds.push(res.json().id);
         }
@@ -63,6 +63,6 @@ export function updateScore(data) {
         score: Math.floor(Math.random() * 1000) + 1,
     });
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const scoreRes = http.put(`http://localhost:8080/api/v1/scores`, scorePayload, params);
+    const scoreRes = http.put(`http://localhost/api/v1/scores`, scorePayload, params);
     check(scoreRes, { '200 OK': (r) => r.status === 200 });
 }

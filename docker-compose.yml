@@ -37,16 +37,26 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app-router.rule=PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/debug/pprof`)"
+      - "traefik.http.routers.app-router.entrypoints=web"
+      - "traefik.http.services.app-service.loadbalancer.server.port=8080"
+      - "traefik.http.routers.app-router.priority=10"
 
   frontend:
     build:
       context: ./frontend
     container_name: gaming-leaderboard-front
     restart: always
-    ports:
-      - "3001:3001"
     depends_on:
       - app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.front.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.front.entrypoints=web"
+      - "traefik.http.services.front.loadbalancer.server.port=3001"
+      - "traefik.http.routers.front.priority=1"
 
   redis:
     image: redis:latest
@@ -102,16 +112,23 @@ services:
     depends_on:
       - prometheus
 
-  nginx:
-    image: nginx:latest
-    container_name: nginx-lb
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
     restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.file.directory=/etc/traefik/routes"
+      - "--providers.file.watch=true"
+      - "--entrypoints.web.address=:80"
     ports:
-      - "8080:80"
+      - "80:80"
+      - "8080:8080"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./traefik/routes:/etc/traefik/routes
     depends_on:
       - app
+      - frontend
 
 volumes:
   postgres-data:

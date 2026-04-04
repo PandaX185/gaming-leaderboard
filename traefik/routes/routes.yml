@@ -1,0 +1,26 @@
+http:
+  routers:
+    app-router:
+      rule: "PathPrefix(`/api`) || PathPrefix(`/metrics`) || PathPrefix(`/debug/pprof`)"
+      service: app-service
+      entryPoints:
+        - web
+      priority: 10
+
+    front-router:
+      rule: "PathPrefix(`/`)"
+      service: front-service
+      entryPoints:
+        - web
+      priority: 1
+
+  services:
+    app-service:
+      loadBalancer:
+        servers:
+          - url: "http://app:8080"
+
+    front-service:
+      loadBalancer:
+        servers:
+          - url: "http://gaming-leaderboard-front:3001"

@@ -23,7 +23,7 @@ export function setup() {
 
     for (let i = 0; i < 10; i++) {
         const payload = JSON.stringify({ name: `Game_${Date.now()}_${i}` });
-        const res = http.post(`http://localhost:8080/api/v1/games`, payload, params);
+        const res = http.post(`http://localhost/api/v1/games`, payload, params);
         if (res.status === 201) {
             gameIds.push(res.json().id);
         }
@@ -34,7 +34,7 @@ export function setup() {
             username: `player_${Date.now()}_${i}`,
             password: 'password123',
         });
-        const res = http.post(`http://localhost:8080/api/v1/players`, payload, params);
+        const res = http.post(`http://localhost/api/v1/players`, payload, params);
         if (res.status === 201) {
             playerIds.push(res.json().id);
         }
@@ -49,7 +49,7 @@ export function setup() {
             game_id: selectedGame,
             score: Math.floor(Math.random() * 10000) + 1,
         });
-        http.put(`http://localhost:8080/api/v1/players/${player}/score`, scorePayload, params);
+        http.put(`http://localhost/api/v1/players/${player}/score`, scorePayload, params);
     }
     console.log("Setup complete - scores populated");
     return { selectedGame, gameIds, playerIds };
@@ -62,7 +62,7 @@ export function normalFlowScenario(data) {
         return;
     }
     const game = selectedGame;
-    const leaderboardRes = http.get(`http://localhost:8080/api/v1/games/${game}/scores?page=1&page_size=20&sort=score&order=desc`);
+    const leaderboardRes = http.get(`http://localhost/api/v1/games/${game}/scores?page=1&page_size=20&sort=score&order=desc`);
     if (leaderboardRes.status !== 200) {
         console.error(`Failed to fetch leaderboard for game ${game}: ${leaderboardRes.status}`);
         return;
@@ -80,7 +80,7 @@ export function normalFlowScenario(data) {
         score: Math.floor(Math.random() * 5000) + 1,
     });
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const scoreRes = http.put(`http://localhost:8080/api/v1/players/${player}/score`, scorePayload, params);
+    const scoreRes = http.put(`http://localhost/api/v1/players/${player}/score`, scorePayload, params);
     check(scoreRes, {
         'score update 200 OK': (r) => r.status === 200,
         'score update not failed': (r) => r.status < 400,
