@@ -73,12 +73,7 @@ func (h *PlayerHandler) GetAllPlayers(c *gin.Context) {
 		c.Abort()
 		return
 	}
-
-	if err := dto.ValidateStructRequest(params); err != nil {
-		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
-		c.Abort()
-		return
-	}
+	params.ClampAndDefault()
 
 	resp, err := h.svc.GetAllPlayers(c.Request.Context(), params)
 	if err != nil {

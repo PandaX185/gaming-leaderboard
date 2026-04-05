@@ -1,8 +1,20 @@
 package dto
 
 type PaginationParams struct {
-	Page     int `form:"page" validate:"gte=1" example:"1"`
-	PageSize int `form:"page_size" validate:"gte=1,lte=1000" example:"10"`
+	Page     int `form:"page" example:"1"`
+	PageSize int `form:"page_size" example:"10"`
+}
+
+func (p *PaginationParams) ClampAndDefault() {
+	if p.Page < 1 {
+		p.Page = 1
+	}
+	if p.PageSize < 1 {
+		p.PageSize = 10
+	}
+	if p.PageSize > 100 {
+		p.PageSize = 100
+	}
 }
 
 type PaginatedResponse struct {

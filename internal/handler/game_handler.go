@@ -85,12 +85,7 @@ func (h *GameHandler) GetGameScores(c *gin.Context) {
 		c.Abort()
 		return
 	}
-
-	if err := dto.ValidateStructRequest(params); err != nil {
-		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
-		c.Abort()
-		return
-	}
+	params.ClampAndDefault()
 
 	resp, err := h.svc.GetGameScores(c.Request.Context(), id, params)
 	if err != nil {
@@ -109,12 +104,7 @@ func (h *GameHandler) GetAllGames(c *gin.Context) {
 		c.Abort()
 		return
 	}
-
-	if err := dto.ValidateStructRequest(params); err != nil {
-		HandleError(c, errors.NewBadRequest(err.Error(), err), "")
-		c.Abort()
-		return
-	}
+	params.ClampAndDefault()
 
 	resp, err := h.svc.GetAllGames(c.Request.Context(), params)
 	if err != nil {

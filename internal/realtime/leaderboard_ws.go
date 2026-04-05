@@ -61,8 +61,8 @@ func NewLeaderboardHub(rdb *redis.Client) *LeaderboardHub {
 	return &LeaderboardHub{
 		rdb: rdb,
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
+			ReadBufferSize:  4096,
+			WriteBufferSize: 4096,
 			CheckOrigin: func(_ *http.Request) bool {
 				return true
 			},
@@ -102,6 +102,30 @@ func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
 
 	h.addClient(gameIDStr, client)
 	defer h.removeClient(gameIDStr, client)
+
+	conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	conn.SetPongHandler(func(string) error { conn.SetReadDeadline(time.Now().Add(60 * time.Second)); return nil })
+
+	processDone := make(chan struct{})
+	defer close(processDone)
+	go func() {
+		ticker := time.NewTicker(54 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				client.mu.Lock()
+				conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					client.mu.Unlock()
+					return
+				}
+				client.mu.Unlock()
+			case <-processDone:
+				return
+			}
+		}
+	}()
 
 	for {
 		if _, _, err := conn.ReadMessage(); err != nil {
