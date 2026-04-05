@@ -5,6 +5,8 @@ http:
       service: app-service
       entryPoints:
         - web
+      middlewares:
+        - websocket
       priority: 10
 
     front-router:
@@ -23,4 +25,11 @@ http:
     front-service:
       loadBalancer:
         servers:
-          - url: "http://gaming-leaderboard-front:3001"
+          - url: "http://gaming-leaderboard-front:80"
+
+  middlewares:
+    websocket:
+      headers:
+        customRequestHeaders:
+          Upgrade: "$upgrade"
+          Connection: "$connection"

@@ -1,74 +1,13 @@
 <!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Realtime Leaderboard</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
-        rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css" />
-</head>
-
-<body>
-    <div class="bg-orb orb-a"></div>
-    <div class="bg-orb orb-b"></div>
-
-    <main class="shell">
-        <header class="hero">
-            <p class="eyebrow">Gaming Leaderboard</p>
-            <h1>Realtime Game Rankings</h1>
-            <p class="subtitle">Live score updates.</p>
-        </header>
-
-        <section class="controls" aria-label="Connection controls">
-            <label>
-                API Base URL
-                <input id="apiBaseUrl" type="text" value="http://localhost:8080" />
-            </label>
-
-            <label>
-                Game
-                <select id="gameSelect">
-                    <option value="">Loading games...</option>
-                </select>
-            </label>
-
-            <label>
-                Game ID
-                <input id="gameId" type="text" placeholder="e.g. 60c72b2f9b1d4c3a5f8e4b1" />
-            </label>
-
-            <div class="actions">
-                <button id="connectBtn" type="button">Connect</button>
-                <button id="disconnectBtn" type="button" disabled>Disconnect</button>
-            </div>
-
-            <p id="status" class="status offline">Offline</p>
-        </section>
-
-        <section class="board-wrap" aria-live="polite">
-            <div class="board-head">
-                <h2>Top Players</h2>
-                <p id="eventMeta">Waiting for updates...</p>
-            </div>
-            <table class="board">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Player</th>
-                        <th>Score</th>
-                    </tr>
-                </thead>
-                <tbody id="leaderboardBody"></tbody>
-            </table>
-        </section>
-    </main>
-
-    <script src="./app.js?v=3"></script>
-</body>
-
+    <title>frontend</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

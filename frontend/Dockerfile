@@ -1,11 +1,21 @@
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS build
+
 WORKDIR /app
-RUN npm install -g http-server
+
+COPY package*.json ./
+
+RUN npm ci
+
 COPY . .
 
-FROM node:18-alpine
-WORKDIR /app
-RUN npm install -g http-server
-COPY --from=builder /app .
-EXPOSE 3001
-CMD ["http-server", ".", "-p", "3001", "-c-1"]
+RUN npm run build
+
+FROM nginx:alpine
+
+COPY --from=build /app/dist /usr/share/nginx/html
+
+COPY nginx.conf /etc/nginx/nginx.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
