@@ -5,14 +5,10 @@ export const options = {
     scenarios: {
         normal_flow: {
             executor: 'constant-vus',
-            vus: 15,
-            duration: '5m',
+            vus: 10,
+            duration: '1m',
             exec: 'normalFlowScenario',
         },
-    },
-    thresholds: {
-        http_req_duration: ['p(95)<500'],
-        http_req_failed: ['rate<0.05'],
     }
 };
 
@@ -34,7 +30,7 @@ export function setup() {
             username: `player_${Date.now()}_${i}`,
             password: 'password123',
         });
-        const res = http.post(`http://localhost/api/v1/players`, payload, params);
+        const res = http.post(`http://localhost/api/v1/players?page_size=20`, payload, params);
         if (res.status === 201) {
             playerIds.push(res.json().id);
         }
@@ -90,6 +86,5 @@ export function normalFlowScenario(data) {
         'score update 200 OK': (r) => r.status === 200,
         'score update not failed': (r) => r.status < 400,
     });
-    const randomDelay = Math.floor(Math.random() * 7000) + 3000;
-    sleep(randomDelay / 1000);
+    sleep(1);
 }

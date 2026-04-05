@@ -37,7 +37,10 @@ function App() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  const [updatingPlayerId, setUpdatingPlayerId] = useState<string>('')
+  const [rankChangedIds, setRankChangedIds] = useState<string[]>([])
   const wsRef = useRef<WebSocket | null>(null)
+  const highlightTimerRef = useRef<number | null>(null)
 
   // Fetch games on component mount
   useEffect(() => {
@@ -100,10 +103,9 @@ function App() {
         if (message.type === 'leaderboard_snapshot') {
           setLeaderboard((message as LeaderboardSnapshot).leaderboard)
         } else if (message.type === 'score_update') {
-          // For simplicity, we'll refetch the leaderboard on updates
-          // In a more sophisticated implementation, you could update the local state
           const update = message as ScoreUpdate
           setLeaderboard(prev => {
+            const prevRankMap = new Map(prev.map((entry) => [entry.player_id, entry.rank]))
             const newLeaderboard = [...prev]
             const existingIndex = newLeaderboard.findIndex(entry => entry.player_id === update.player_id)
             if (existingIndex >= 0) {
@@ -119,10 +121,32 @@ function App() {
                 score: update.score
               })
             }
-            return newLeaderboard.sort((a, b) => b.score - a.score).map((entry, index) => ({
+
+            const sorted = newLeaderboard.sort((a, b) => b.score - a.score).map((entry, index) => ({
               ...entry,
               rank: index + 1
             }))
+
+            const changedIds = sorted.reduce<string[]>((acc, entry) => {
+              const oldRank = prevRankMap.get(entry.player_id)
+              if (oldRank !== undefined && oldRank !== entry.rank) {
+                acc.push(entry.player_id)
+              }
+              if (oldRank === undefined && entry.player_id === update.player_id) {
+                acc.push(entry.player_id)
+              }
+              return acc
+            }, [])
+
+            window.clearTimeout(highlightTimerRef.current ?? 0)
+            setUpdatingPlayerId(update.player_id)
+            setRankChangedIds(changedIds)
+            highlightTimerRef.current = window.setTimeout(() => {
+              setUpdatingPlayerId('')
+              setRankChangedIds([])
+            }, 1500)
+
+            return sorted
           })
         }
       } catch (err) {
@@ -206,13 +230,19 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {leaderboard.map((entry) => (
-                    <tr key={entry.player_id} className={`rank-${entry.rank <= 3 ? entry.rank : ''}`}>
-                      <td>{entry.rank}</td>
-                      <td>{entry.player_id}</td>
-                      <td>{entry.score.toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {leaderboard.map((entry) => {
+                    const classes = [
+                      entry.player_id === updatingPlayerId ? 'updating' : '',
+                      rankChangedIds.includes(entry.player_id) ? 'rank-changed' : '',
+                    ].filter(Boolean).join(' ')
+                    return (
+                      <tr key={entry.player_id} className={classes}>
+                        <td>{entry.rank}</td>
+                        <td>{entry.player_id}</td>
+                        <td>{entry.score.toLocaleString()}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             )}

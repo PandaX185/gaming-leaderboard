@@ -125,31 +125,30 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
-.rank-1 {
-  background: linear-gradient(135deg, #ffd700, #ffb347);
-  color: white;
+tbody tr.updating {
+  background: rgba(88, 173, 105, 0.18);
+  transition: background-color 0.3s ease;
 }
 
-.rank-2 {
-  background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
-  color: white;
+tbody tr.rank-changed {
+  animation: rank-shift 0.6s ease;
 }
 
-.rank-3 {
-  background: linear-gradient(135deg, #cd7f32, #a0522d);
-  color: white;
-}
+@keyframes rank-shift {
+  0% {
+    transform: translateX(0);
+    background-color: rgba(255, 255, 0, 0.15);
+  }
 
-.rank-1,
-.rank-2,
-.rank-3 {
-  font-weight: bold;
-}
+  50% {
+    transform: translateX(6px);
+    background-color: rgba(88, 173, 105, 0.18);
+  }
 
-.rank-1 td,
-.rank-2 td,
-.rank-3 td {
-  border-bottom-color: rgba(255, 255, 255, 0.3);
+  100% {
+    transform: translateX(0);
+    background-color: transparent;
+  }
 }
 
 @media (max-width: 1024px) {
