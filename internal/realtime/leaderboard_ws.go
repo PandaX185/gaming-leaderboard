@@ -2,7 +2,6 @@ package realtime
 
 import (
 	"context"
-	"fmt"
 	"gaming-leaderboard/internal/log"
 	"gaming-leaderboard/internal/repository"
 	"net/http"
@@ -30,7 +29,7 @@ type LeaderboardEntry struct {
 
 type LeaderboardSnapshot struct {
 	Type        string             `json:"type"`
-	GameID      int                `json:"game_id"`
+	GameID      string             `json:"game_id"`
 	Leaderboard []LeaderboardEntry `json:"leaderboard"`
 	Timestamp   int64              `json:"timestamp"`
 }
@@ -79,12 +78,6 @@ func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
 		return
 	}
 
-	gameID, err := strconv.Atoi(gameIDStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game id"})
-		return
-	}
-
 	conn, err := h.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		return
@@ -93,7 +86,7 @@ func (h *LeaderboardHub) HandleGameWS(c *gin.Context) {
 	client := &wsClient{conn: conn}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	snapshot, snapErr := h.buildLeaderboardSnapshot(ctx, gameID)
+	snapshot, snapErr := h.buildLeaderboardSnapshot(ctx, gameIDStr)
 	cancel()
 
 	if snapErr == nil {
@@ -237,8 +230,8 @@ func (h *LeaderboardHub) broadcastDeltaToGame(gameID string, values map[string]a
 	}
 }
 
-func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID int) (LeaderboardSnapshot, error) {
-	key := repository.LeaderboardKey(fmt.Sprintf("%d", gameID))
+func (h *LeaderboardHub) buildLeaderboardSnapshot(ctx context.Context, gameID string) (LeaderboardSnapshot, error) {
+	key := repository.LeaderboardKey(gameID)
 	rows, err := h.rdb.ZRevRangeWithScores(ctx, key, 0, 99).Result()
 	if err != nil {
 		return LeaderboardSnapshot{}, err

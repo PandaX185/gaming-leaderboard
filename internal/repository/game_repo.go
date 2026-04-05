@@ -13,11 +13,11 @@ import (
 
 type GameRepository interface {
 	Insert(context.Context, *dto.CreateGameRequest) (*dto.GameResponse, error)
-	GetByID(context.Context, int) (*dto.GameResponse, error)
+	GetByID(context.Context, string) (*dto.GameResponse, error)
 	GetAll(context.Context, *dto.PaginationParams) (*dto.PaginatedResponse, error)
-	GetScores(context.Context, int, *dto.PaginationParams) (*dto.PaginatedResponse, error)
-	Update(context.Context, int, *dto.UpdateGameRequest) (*dto.GameResponse, error)
-	Delete(context.Context, int) error
+	GetScores(context.Context, string, *dto.PaginationParams) (*dto.PaginatedResponse, error)
+	Update(context.Context, string, *dto.UpdateGameRequest) (*dto.GameResponse, error)
+	Delete(context.Context, string) error
 	Count(ctx context.Context) (int, error)
 }
 
@@ -49,16 +49,16 @@ func (r *postgresGameRepository) Insert(ctx context.Context, req *dto.CreateGame
 	return &game, nil
 }
 
-func (r *postgresGameRepository) GetByID(ctx context.Context, id int) (*dto.GameResponse, error) {
+func (r *postgresGameRepository) GetByID(ctx context.Context, id string) (*dto.GameResponse, error) {
 	var game dto.GameResponse
 	if err := r.db.
 		QueryRow(ctx, "select id, name, created_at, updated_at from games where id = $1", id).
 		Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			log.Warn("GameRepository GetByID not found id=%d", id)
+			log.Warn("GameRepository GetByID not found id=%s", id)
 			return nil, internalErrors.NewNotFound("game not found", err)
 		}
-		log.Error("GameRepository GetByID failed id=%d err=%v", id, err)
+		log.Error("GameRepository GetByID failed id=%s err=%v", id, err)
 		return nil, err
 	}
 	return &game, nil
@@ -89,7 +89,7 @@ func (r *postgresGameRepository) GetAll(ctx context.Context, params *dto.Paginat
 	}, nil
 }
 
-func (r *postgresGameRepository) GetScores(ctx context.Context, gameID int, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
+func (r *postgresGameRepository) GetScores(ctx context.Context, gameID string, params *dto.PaginationParams) (*dto.PaginatedResponse, error) {
 	rows, err := r.db.Query(ctx, "select player_id, score, created_at, updated_at from scores where game_id = $1 limit $2 offset $3", gameID, params.PageSize, (params.Page-1)*params.PageSize)
 	if err != nil {
 		log.Error("GameRepository GetScores query failed: %v", err)
@@ -121,20 +121,20 @@ func (r *postgresGameRepository) GetScores(ctx context.Context, gameID int, para
 	}, nil
 }
 
-func (r *postgresGameRepository) Update(ctx context.Context, id int, req *dto.UpdateGameRequest) (*dto.GameResponse, error) {
+func (r *postgresGameRepository) Update(ctx context.Context, id string, req *dto.UpdateGameRequest) (*dto.GameResponse, error) {
 	var game dto.GameResponse
 	if err := r.db.
 		QueryRow(ctx, "update games set name = $1, updated_at = now() where id = $2 returning id, name, created_at, updated_at", req.Name, id).
 		Scan(&game.ID, &game.Name, &game.CreatedAt, &game.UpdatedAt); err != nil {
-		log.Error("GameRepository Update failed id=%d err=%v", id, err)
+		log.Error("GameRepository Update failed id=%s err=%v", id, err)
 		return nil, err
 	}
 	return &game, nil
 }
 
-func (r *postgresGameRepository) Delete(ctx context.Context, id int) error {
+func (r *postgresGameRepository) Delete(ctx context.Context, id string) error {
 	if _, err := r.db.Exec(ctx, "delete from games where id = $1", id); err != nil {
-		log.Error("GameRepository Delete failed id=%d err=%v", id, err)
+		log.Error("GameRepository Delete failed id=%s err=%v", id, err)
 		return err
 	}
 	return nil

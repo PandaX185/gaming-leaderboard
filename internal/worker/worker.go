@@ -132,10 +132,10 @@ func (w *Worker) getEventHandler(event queue.Event) func(ctx context.Context, pa
 					return err
 				}
 			}
-			if err := w.repo.(repository.ScoreRepository).UpdateScore(workerCtx, data.PlayerID, data.GameID, data.Score); err != nil {
+			if err := w.repo.(repository.ScoreRepository).UpdateScore(workerCtx, data.GameID, data.PlayerID, data.Score); err != nil {
 				return err
 			}
-			return w.cache.IncrementScore(workerCtx, data.PlayerID, data.GameID, data.Score)
+			return w.cache.IncrementScore(workerCtx, data.GameID, data.PlayerID, data.Score)
 		}
 	default:
 		return func(ctx context.Context, payload any) error {

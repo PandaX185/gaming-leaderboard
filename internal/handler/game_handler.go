@@ -4,7 +4,6 @@ import (
 	"gaming-leaderboard/internal/dto"
 	"gaming-leaderboard/internal/errors"
 	"gaming-leaderboard/internal/service"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,13 +53,8 @@ func (h *GameHandler) CreateGame(c *gin.Context) {
 }
 
 func (h *GameHandler) GetGameByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
-		c.Abort()
-		return
-	}
+	id := c.Param("id")
+
 	resp, err := h.svc.GetGameByID(c.Request.Context(), id)
 	if err != nil {
 		HandleError(c, err, "game not found")
@@ -72,20 +66,15 @@ func (h *GameHandler) GetGameByID(c *gin.Context) {
 }
 
 func (h *GameHandler) GetGameScores(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
-		c.Abort()
-		return
-	}
+	id := c.Param("id")
+	
 	params := &dto.PaginationParams{}
 	if err := c.ShouldBindQuery(params); err != nil {
 		HandleError(c, errors.NewBadRequest("Invalid query parameters", err), "")
 		c.Abort()
 		return
 	}
-	params.ClampAndDefault()
+	params.ClampAndDefault()	
 
 	resp, err := h.svc.GetGameScores(c.Request.Context(), id, params)
 	if err != nil {
@@ -117,13 +106,7 @@ func (h *GameHandler) GetAllGames(c *gin.Context) {
 }
 
 func (h *GameHandler) UpdateGame(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
-		c.Abort()
-		return
-	}
+	id := c.Param("id")
 	data := &dto.UpdateGameRequest{}
 	if err := c.ShouldBindJSON(data); err != nil {
 		HandleError(c, errors.NewBadRequest("Invalid request", err), "")
@@ -147,15 +130,9 @@ func (h *GameHandler) UpdateGame(c *gin.Context) {
 }
 
 func (h *GameHandler) DeleteGame(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		HandleError(c, errors.NewBadRequest("Invalid ID", err), "")
-		c.Abort()
-		return
-	}
-	err = h.svc.DeleteGame(c.Request.Context(), id)
-	if err != nil {
+	id := c.Param("id")
+	
+	if err := h.svc.DeleteGame(c.Request.Context(), id); err != nil {
 		HandleError(c, err, "failed to delete game")
 		c.Abort()
 		return

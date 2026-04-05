@@ -46,10 +46,14 @@ export function setup() {
     for (let i = 0; i < playerIds.length; i++) {
         const player = playerIds[i];
         const scorePayload = JSON.stringify({
+            player_id: player,
             game_id: selectedGame,
             score: Math.floor(Math.random() * 10000) + 1,
         });
-        http.put(`http://localhost/api/v1/players/${player}/score`, scorePayload, params);
+        const scoreRes = http.put('http://localhost/api/v1/scores', scorePayload, params);
+        if (scoreRes.status !== 200) {
+            console.error(`Failed to seed score for player ${player}: ${scoreRes.status} ${scoreRes.body}`);
+        }
     }
     console.log("Setup complete - scores populated");
     return { selectedGame, gameIds, playerIds };
@@ -62,7 +66,7 @@ export function normalFlowScenario(data) {
         return;
     }
     const game = selectedGame;
-    const leaderboardRes = http.get(`http://localhost/api/v1/games/${game}/scores?page=1&page_size=20&sort=score&order=desc`);
+    const leaderboardRes = http.get(`http://localhost/api/v1/games/${game}/scores?page=1&page_size=20`);
     if (leaderboardRes.status !== 200) {
         console.error(`Failed to fetch leaderboard for game ${game}: ${leaderboardRes.status}`);
         return;
@@ -76,11 +80,12 @@ export function normalFlowScenario(data) {
     const selectedPlayerData = topPlayers[Math.floor(Math.random() * topPlayers.length)];
     const player = selectedPlayerData.player_id;
     const scorePayload = JSON.stringify({
+        player_id: player,
         game_id: game,
         score: Math.floor(Math.random() * 5000) + 1,
     });
     const params = { headers: { 'Content-Type': 'application/json' } };
-    const scoreRes = http.put(`http://localhost/api/v1/players/${player}/score`, scorePayload, params);
+    const scoreRes = http.put('http://localhost/api/v1/scores', scorePayload, params);
     check(scoreRes, {
         'score update 200 OK': (r) => r.status === 200,
         'score update not failed': (r) => r.status < 400,

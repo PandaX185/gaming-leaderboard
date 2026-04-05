@@ -33,6 +33,7 @@ type WSMessage = LeaderboardSnapshot | ScoreUpdate
 function App() {
   const [games, setGames] = useState<Game[]>([])
   const [selectedGameId, setSelectedGameId] = useState<string>('')
+  const [manualGameId, setManualGameId] = useState<string>('')
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string>('')
@@ -59,7 +60,7 @@ function App() {
   const fetchGames = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost/api/v1/games')
+      const response = await fetch('http://localhost/api/v1/games?page_size=100')
       if (!response.ok) {
         throw new Error('Failed to fetch games')
       }
@@ -70,6 +71,16 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const applyManualGameId = () => {
+    const trimmed = manualGameId.trim()
+    if (!trimmed) {
+      setError('Please enter a game id')
+      return
+    }
+    setSelectedGameId(trimmed)
+    setError('')
   }
 
   const connectWebSocket = (gameId: string) => {
@@ -158,6 +169,20 @@ function App() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="manual-entry">
+          <label htmlFor="manual-game-id">Enter Game ID manually:</label>
+          <input
+            id="manual-game-id"
+            type="text"
+            value={manualGameId}
+            onChange={(e) => setManualGameId(e.target.value)}
+            placeholder="Paste game id here"
+          />
+          <button type="button" onClick={applyManualGameId}>
+            Load
+          </button>
         </div>
 
         {error && (

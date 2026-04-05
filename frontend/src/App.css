@@ -27,7 +27,8 @@ label {
   color: #555;
 }
 
-select {
+select,
+.manual-entry input {
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 4px;
@@ -35,10 +36,32 @@ select {
   min-width: 200px;
 }
 
-select:focus {
+select:focus,
+.manual-entry input:focus {
   outline: none;
   border-color: #007bff;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.manual-entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.manual-entry button {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 4px;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.manual-entry button:hover {
+  background: #0056d6;
 }
 
 .error {
