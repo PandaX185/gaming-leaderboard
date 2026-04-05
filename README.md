@@ -197,8 +197,10 @@ The repository ships with a [k6](https://k6.io/) load test that:
 **Thresholds:** p95 latency < 500 ms, error rate < 5 %
 
 ```bash
-k6 run scripts/test.js
+k6 run --out influxdb=http://admin:admin123@host.docker.internal:8086/k6 scripts/test_normal_flow.js
 ```
+
+For InfluxDB v1, use basic auth credentials rather than a v2 token.
 
 ---
 

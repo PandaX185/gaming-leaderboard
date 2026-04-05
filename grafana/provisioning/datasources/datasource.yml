@@ -8,3 +8,17 @@ datasources:
     url: http://prometheus:9090
     isDefault: true
     editable: true
+  - name: influxdb
+    uid: influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    database: ${INFLUXDB_DB}
+    user: ${INFLUXDB_USER}
+    secureJsonData:
+      password: ${INFLUXDB_PASSWORD}
+    jsonData:
+      httpMode: GET
+      version: InfluxQL
+      tlsSkipVerify: true
+    editable: true

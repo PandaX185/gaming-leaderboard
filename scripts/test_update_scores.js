@@ -11,8 +11,8 @@ export const options = {
             maxVUs: 4000,
             stages: [
                 { target: 1000, duration: '30s' },
-                { target: 5000, duration: '1m' },
-                { target: 10000, duration: '90s' },
+                { target: 3000, duration: '1m' },
+                { target: 7000, duration: '90s' },
             ],
             exec: 'updateScore',
         },

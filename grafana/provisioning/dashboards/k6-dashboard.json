@@ -1,0 +1,107 @@
+{
+    "id": null,
+    "title": "K6 Load Testing Metrics",
+    "tags": [
+        "k6",
+        "load-testing"
+    ],
+    "timezone": "browser",
+    "panels": [
+        {
+            "id": 1,
+            "title": "HTTP Request Duration",
+            "type": "timeseries",
+            "targets": [
+                {
+                    "query": "SELECT mean(\"value\") FROM \"http_req_duration\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                    "rawQuery": true,
+                    "refId": "A"
+                }
+            ],
+            "datasource": "influxdb",
+            "fieldConfig": {
+                "defaults": {
+                    "unit": "ms"
+                }
+            },
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 0
+            }
+        },
+        {
+            "id": 2,
+            "title": "HTTP Requests per Second",
+            "type": "timeseries",
+            "targets": [
+                {
+                    "query": "SELECT sum(\"value\") FROM \"http_reqs\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                    "rawQuery": true,
+                    "refId": "A"
+                }
+            ],
+            "datasource": "influxdb",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 0
+            }
+        },
+        {
+            "id": 3,
+            "title": "Failed HTTP Requests",
+            "type": "timeseries",
+            "targets": [
+                {
+                    "query": "SELECT sum(\"value\") FROM \"http_req_failed\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                    "rawQuery": true,
+                    "refId": "A"
+                }
+            ],
+            "datasource": "influxdb",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            }
+        },
+        {
+            "id": 4,
+            "title": "Virtual Users",
+            "type": "timeseries",
+            "targets": [
+                {
+                    "query": "SELECT mean(\"value\") FROM \"vus\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                    "rawQuery": true,
+                    "refId": "A"
+                }
+            ],
+            "datasource": "influxdb",
+            "gridPos": {
+                "h": 8,
+                "w": 12,
+                "x": 12,
+                "y": 8
+            }
+        }
+    ],
+    "time": {
+        "from": "now-1h",
+        "to": "now"
+    },
+    "timepicker": {},
+    "templating": {
+        "list": []
+    },
+    "annotations": {
+        "list": []
+    },
+    "refresh": "5s",
+    "schemaVersion": 27,
+    "version": 0,
+    "links": []
+}
