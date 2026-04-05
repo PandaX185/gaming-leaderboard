@@ -172,11 +172,6 @@ func (h *LeaderboardHub) removeClient(gameID string, client *wsClient) {
 }
 
 func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr string, stream string) {
-	gameID, err := strconv.Atoi(gameIDStr)
-	if err != nil {
-		log.Warn("Invalid game ID in consumeGameUpdates: %s", gameIDStr)
-		return
-	}
 	lastID := "$"
 	for {
 		select {
@@ -197,7 +192,7 @@ func (h *LeaderboardHub) consumeGameUpdates(ctx context.Context, gameIDStr strin
 			if ctx.Err() != nil {
 				return
 			}
-			log.Error("failed reading leaderboard updates stream for game %d: %v", gameID, err)
+			log.Error("failed reading leaderboard updates stream for game %s: %v", gameIDStr, err)
 			time.Sleep(500 * time.Millisecond)
 			continue
 		}

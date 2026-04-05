@@ -70,7 +70,27 @@ func (c *redisLeaderboardCache) IncrementScore(ctx context.Context, gameID strin
 	}
 
 	key := LeaderboardKey(fmt.Sprintf("%s", gameID))
-	return c.rdb.ZIncrBy(ctx, key, float64(delta), playerID).Err()
+	score, err := c.rdb.ZIncrBy(ctx, key, float64(delta), playerID).Result()
+	if err != nil {
+		return err
+	}
+
+	rank, err := c.rdb.ZRevRank(ctx, key, playerID).Result()
+	if err != nil {
+		return err
+	}
+
+	stream := LeaderboardUpdatesStream(gameID)
+	_, err = c.rdb.XAdd(ctx, &redis.XAddArgs{
+		Stream: stream,
+		Values: map[string]any{
+			"player_id": playerID,
+			"score":     score,
+			"rank":      rank + 1,
+			"type":      "score_update",
+		},
+	}).Result()
+	return err
 }
 
 func (c *redisLeaderboardCache) RebuildFromDb(ctx context.Context, scoreRepo ScoreRepository, gameRepo GameRepository, playerRepo PlayerRepository) error {
